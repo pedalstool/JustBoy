@@ -339,6 +339,7 @@ fun SettingsDialog(
                             }
                             SettingsTab.Saves -> {
                                 SaveFolderSection(settingsManager)
+                                ResumeAutosaveSection(settingsManager)
                                 SettingsSection("Slot selection") {
                                     Text(
                                         "Hotkey save/load uses this slot.",
@@ -393,6 +394,22 @@ fun SettingsDialog(
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun ResumeAutosaveSection(settingsManager: SettingsManager) {
+    val scope = rememberCoroutineScope()
+    val resumeAutosave by settingsManager.resumeAutosave.collectAsState(false)
+    SettingsSection("Startup") {
+        Text(
+            "Off opens the game menu. On continues from the last time you left.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        SettingsSwitch("Resume last session", resumeAutosave) { enabled ->
+            scope.launch { settingsManager.setResumeAutosave(enabled) }
         }
     }
 }

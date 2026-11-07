@@ -27,6 +27,7 @@ class SettingsManager(private val context: Context) {
         val THEME_MODE = intPreferencesKey("theme_mode")
         val SCREEN_SIZE = intPreferencesKey("screen_size")
         val SAVE_DIRECTORY = stringPreferencesKey("save_directory")
+        val RESUME_AUTOSAVE = booleanPreferencesKey("resume_autosave")
         const val SCREEN_SIZE_FIT = 0
         const val SCREEN_SIZE_INTEGER = 1
     }
@@ -143,6 +144,16 @@ class SettingsManager(private val context: Context) {
 
     val saveDirectory: Flow<String> = context.dataStore.data.map { prefs ->
         prefs[SAVE_DIRECTORY].orEmpty()
+    }
+
+    val resumeAutosave: Flow<Boolean> = context.dataStore.data.map { prefs ->
+        prefs[RESUME_AUTOSAVE] ?: false
+    }
+
+    suspend fun setResumeAutosave(enabled: Boolean) {
+        context.dataStore.edit { prefs ->
+            prefs[RESUME_AUTOSAVE] = enabled
+        }
     }
 
     suspend fun setSaveDirectory(path: String) {

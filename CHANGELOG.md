@@ -1,5 +1,10 @@
 # Changes
 
+## 1.0.3
+
+- Start at the game menu instead of restoring the last session
+- Add a Saves setting, Resume last session, for the old behavior
+
 ## 1.0.2
 
 - Load GBA battery saves such as Golden Sun, whose flash type is not known until the game starts

@@ -35,6 +35,7 @@ import com.justgba.settings.SettingsManager
 import com.justgba.ui.GameScreen
 import com.justgba.ui.MainMenu
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
@@ -334,9 +335,8 @@ class MainActivity : ComponentActivity() {
         if (saveFile.exists() && !NativeBridge.nativeBatteryLoad(savePath)) {
             Log.w(TAG, "Could not load battery save $savePath")
         }
-        val batteryReplacesAutosave = saveFile.exists() && stateFile.exists() &&
-            SaveLocations.preferBatteryOverAutosave(saveFile.lastModified(), stateFile.lastModified())
-        if (stateFile.exists() && !batteryReplacesAutosave && !NativeBridge.nativeStateLoad(statePath)) {
+        val resumeAutosave = runBlocking { settingsManager.resumeAutosave.first() }
+        if (resumeAutosave && stateFile.exists() && !NativeBridge.nativeStateLoad(statePath)) {
             Log.w(TAG, "Could not load auto state $statePath")
         }
 

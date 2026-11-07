@@ -50,12 +50,6 @@ class SaveLocationsTest {
         assertNull(SaveLocations.pathFromDocumentId("Saves", temp.root))
     }
 
-    @Test fun aReplacedBatterySaveWinsOverAnOlderAutosave() {
-        assertTrue(SaveLocations.preferBatteryOverAutosave(10_000L, 7_000L))
-        assertFalse(SaveLocations.preferBatteryOverAutosave(10_000L, 9_000L))
-        assertFalse(SaveLocations.preferBatteryOverAutosave(8_000L, 10_000L))
-    }
-
     @Test fun copiesMissingSaveFilesAndLeavesExistingOnes() {
         val from = temp.newFolder("from")
         val to = temp.newFolder("to")

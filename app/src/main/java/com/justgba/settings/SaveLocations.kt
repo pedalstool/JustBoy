@@ -26,9 +26,6 @@ object SaveLocations {
 
     fun ensureDirectory(dir: File): Boolean = dir.isDirectory || dir.mkdirs()
 
-    fun preferBatteryOverAutosave(batteryModifiedMs: Long, autosaveModifiedMs: Long): Boolean =
-        batteryModifiedMs >= autosaveModifiedMs + 2_000L
-
     fun isWritable(dir: File): Boolean {
         if (!ensureDirectory(dir)) return false
         val probe = File(dir, ".justboy-write-test")
