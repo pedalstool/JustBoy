@@ -304,27 +304,10 @@ Java_com_justgba_emulator_NativeBridge_nativeBatteryLoad(JNIEnv* env, jclass, js
     if (!core) return JNI_FALSE;
     const char* path = env->GetStringUTFChars(savePath, nullptr);
     if (!path) return JNI_FALSE;
-    FILE* f = fopen(path, "rb");
-    if (!f) {
-        env->ReleaseStringUTFChars(savePath, path);
-        return JNI_FALSE;
-    }
-    fseek(f, 0, SEEK_END);
-    long file_size = ftell(f);
-    fseek(f, 0, SEEK_SET);
-    if (file_size <= 0) {
-        fclose(f);
-        env->ReleaseStringUTFChars(savePath, path);
-        return JNI_FALSE;
-    }
-    void* buf = malloc(static_cast<size_t>(file_size));
-    bool ok = false;
-    if (buf) {
-        size_t n = fread(buf, 1, static_cast<size_t>(file_size), f);
-        ok = n > 0 && core->savedataRestore(core, buf, n, true);
-        free(buf);
-    }
-    fclose(f);
+    // savedataRestore is a no-op while the cart type is still AUTODETECT.
+    // Golden Sun stays that way until the game first touches flash, so the
+    // file has to be the core's save backing store instead of a one-shot copy.
+    bool ok = mCoreLoadSaveFile(core, path, false);
     env->ReleaseStringUTFChars(savePath, path);
     return ok ? JNI_TRUE : JNI_FALSE;
 }

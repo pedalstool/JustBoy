@@ -329,10 +329,14 @@ class MainActivity : ComponentActivity() {
             return
         }
 
-        if (File(savePath).exists() && !NativeBridge.nativeBatteryLoad(savePath)) {
+        val saveFile = File(savePath)
+        val stateFile = File(statePath)
+        if (saveFile.exists() && !NativeBridge.nativeBatteryLoad(savePath)) {
             Log.w(TAG, "Could not load battery save $savePath")
         }
-        if (File(statePath).exists() && !NativeBridge.nativeStateLoad(statePath)) {
+        val batteryReplacesAutosave = saveFile.exists() && stateFile.exists() &&
+            SaveLocations.preferBatteryOverAutosave(saveFile.lastModified(), stateFile.lastModified())
+        if (stateFile.exists() && !batteryReplacesAutosave && !NativeBridge.nativeStateLoad(statePath)) {
             Log.w(TAG, "Could not load auto state $statePath")
         }
 
