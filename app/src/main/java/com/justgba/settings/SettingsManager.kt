@@ -7,9 +7,12 @@ import androidx.datastore.preferences.core.floatPreferencesKey
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.withContext
+import java.io.File
 
 private val Context.dataStore by preferencesDataStore(name = "justgba_settings")
 
@@ -23,6 +26,7 @@ class SettingsManager(private val context: Context) {
         val LOCK_LANDSCAPE = booleanPreferencesKey("lock_landscape")
         val THEME_MODE = intPreferencesKey("theme_mode")
         val SCREEN_SIZE = intPreferencesKey("screen_size")
+        val SAVE_DIRECTORY = stringPreferencesKey("save_directory")
         const val SCREEN_SIZE_FIT = 0
         const val SCREEN_SIZE_INTEGER = 1
     }
@@ -135,6 +139,37 @@ class SettingsManager(private val context: Context) {
         context.dataStore.edit { prefs ->
             prefs[SCREEN_SIZE] = value
         }
+    }
+
+    val saveDirectory: Flow<String> = context.dataStore.data.map { prefs ->
+        prefs[SAVE_DIRECTORY].orEmpty()
+    }
+
+    suspend fun setSaveDirectory(path: String) {
+        val next = path.trim()
+        val previous = saveDirectory.first()
+        withContext(Dispatchers.IO) {
+            val root = SaveLocations.primaryRoot()
+            val from = SaveLocations.resolve(previous, root)
+            val to = SaveLocations.resolve(next, root)
+            runCatching { SaveLocations.copyMissingSaves(from, to) }
+            context.getExternalFilesDir(null)?.let { legacy ->
+                runCatching { SaveLocations.copyMissingSaves(legacy, to) }
+            }
+        }
+        context.dataStore.edit { prefs ->
+            if (next.isEmpty()) prefs.remove(SAVE_DIRECTORY) else prefs[SAVE_DIRECTORY] = next
+        }
+    }
+
+    suspend fun preparedSaveDirectory(): File = withContext(Dispatchers.IO) {
+        val root = SaveLocations.primaryRoot()
+        val dir = SaveLocations.resolve(saveDirectory.first(), root)
+        SaveLocations.ensureDirectory(dir)
+        context.getExternalFilesDir(null)?.let { legacy ->
+            runCatching { SaveLocations.copyMissingSaves(legacy, dir) }
+        }
+        dir
     }
 }
 

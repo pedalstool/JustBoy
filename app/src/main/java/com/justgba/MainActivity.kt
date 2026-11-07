@@ -7,8 +7,10 @@ import android.os.Bundle
 import android.provider.OpenableColumns
 import android.util.Log
 import android.view.WindowManager
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
@@ -28,10 +30,14 @@ import com.justgba.data.RecentRomEntry
 import com.justgba.data.RecentRomsManager
 import com.justgba.emulator.EmulatorThread
 import com.justgba.emulator.NativeBridge
+import com.justgba.settings.SaveLocations
 import com.justgba.settings.SettingsManager
 import com.justgba.ui.GameScreen
 import com.justgba.ui.MainMenu
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.FileOutputStream
 import java.util.zip.ZipFile
@@ -43,8 +49,11 @@ class MainActivity : ComponentActivity() {
 
     private var audioEngine: AudioEngine? = null
     private var emulatorThread: EmulatorThread? = null
-    private var currentSavePath: String? = null
-    private var currentStatePath: String? = null
+    private var currentSavePath by mutableStateOf<String?>(null)
+    private var currentStatePath by mutableStateOf<String?>(null)
+    private var askedForStorage = false
+    private val writePermissionLauncher =
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) { }
     private lateinit var settingsManager: SettingsManager
     private lateinit var recentRomsManager: RecentRomsManager
     private var currentRomPath by mutableStateOf<String?>(null)
@@ -73,6 +82,21 @@ class MainActivity : ComponentActivity() {
 
         settingsManager = SettingsManager(applicationContext)
         recentRomsManager = RecentRomsManager(applicationContext)
+        lifecycleScope.launch {
+            settingsManager.saveDirectory.collect { custom ->
+                val dir = withContext(Dispatchers.IO) {
+                    val directory = SaveLocations.resolve(custom, SaveLocations.primaryRoot())
+                    SaveLocations.ensureDirectory(directory)
+                    directory
+                }
+                val saveName = currentSavePath?.let { File(it).name } ?: return@collect
+                val updatedSave = File(dir, saveName).absolutePath
+                if (updatedSave != currentSavePath) {
+                    currentSavePath = updatedSave
+                    currentStatePath = currentStatePath?.let { File(dir, File(it).name).absolutePath }
+                }
+            }
+        }
 
         lifecycleScope.launch {
             lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
@@ -156,12 +180,16 @@ class MainActivity : ComponentActivity() {
     private fun launchRom(path: String, displayName: String, uri: Uri?) {
         stopEmulation()
         val baseName = File(displayName).nameWithoutExtension
-        val saveDir = getExternalFilesDir(null) ?: filesDir
+        val saveDir = runBlocking(Dispatchers.IO) { settingsManager.preparedSaveDirectory() }
+        if (!SaveLocations.isWritable(saveDir)) {
+            Toast.makeText(this, "Cannot write saves in ${saveDir.absolutePath}", Toast.LENGTH_LONG).show()
+            requestSaveStorageAccess()
+        }
         val savePath = File(saveDir, "$baseName.sav").absolutePath
         val statePath = File(saveDir, "$baseName.state.auto").absolutePath
         currentSavePath = savePath
         currentStatePath = statePath
-        startEmulation(path, savePath, statePath)
+        startEmulation(path, saveDir.absolutePath, savePath, statePath)
         currentRomPath = path
         if (uri != null) {
             lifecycleScope.launch {
@@ -190,6 +218,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
+        ensureSaveFolder()
         audioEngine?.resume()
         if(!com.justgba.input.GameInput.menuOpen) emulatorThread?.resume()
     }
@@ -270,9 +299,24 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    private fun startEmulation(romPath: String, savePath: String, statePath: String) {
+    private fun ensureSaveFolder() {
+        lifecycleScope.launch(Dispatchers.IO) {
+            val dir = settingsManager.preparedSaveDirectory()
+            if (SaveLocations.isWritable(dir)) return@launch
+            withContext(Dispatchers.Main) { requestSaveStorageAccess() }
+        }
+    }
+
+    private fun requestSaveStorageAccess() {
+        if (askedForStorage) return
+        askedForStorage = true
+        SaveLocations.requestStorageAccess(this) {
+            writePermissionLauncher.launch(android.Manifest.permission.WRITE_EXTERNAL_STORAGE)
+        }
+    }
+
+    private fun startEmulation(romPath: String, saveDir: String, savePath: String, statePath: String) {
         val sysDir = filesDir.absolutePath
-        val saveDir = getExternalFilesDir(null)?.absolutePath ?: filesDir.absolutePath
 
         if (!NativeBridge.nativeInit(sysDir, saveDir)) {
             Log.e(TAG, "nativeInit failed")

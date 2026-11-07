@@ -87,16 +87,18 @@ fun MainMenu(
     ) { uri: Uri? ->
         val entry = selectedEntry ?: return@rememberLauncherForActivityResult
         selectedEntry = null
-        val saveFile = File(
-            context.getExternalFilesDir(null) ?: context.filesDir,
-            "${File(entry.displayName).nameWithoutExtension}.sav"
-        )
-        if (!saveFile.exists()) {
-            Toast.makeText(context, "No save file found", Toast.LENGTH_SHORT).show()
-            return@rememberLauncherForActivityResult
-        }
         val target = uri ?: return@rememberLauncherForActivityResult
         scope.launch(Dispatchers.IO) {
+            val saveFile = File(
+                settingsManager.preparedSaveDirectory(),
+                "${File(entry.displayName).nameWithoutExtension}.sav"
+            )
+            if (!saveFile.exists()) {
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(context, "No save file found", Toast.LENGTH_SHORT).show()
+                }
+                return@launch
+            }
             try {
                 context.contentResolver.openOutputStream(target)?.use { out ->
                     saveFile.inputStream().use { inp -> inp.copyTo(out) }
@@ -120,15 +122,16 @@ fun MainMenu(
         val source = uri ?: return@rememberLauncherForActivityResult
         scope.launch(Dispatchers.IO) {
             try {
+                val saveDir = settingsManager.preparedSaveDirectory()
                 val saveFile = File(
-                    context.getExternalFilesDir(null) ?: context.filesDir,
+                    saveDir,
                     "${File(entry.displayName).nameWithoutExtension}.sav"
                 )
                 context.contentResolver.openInputStream(source)?.use { inp ->
                     saveFile.outputStream().use { out -> inp.copyTo(out) }
                 }
                 val stateFile = File(
-                    context.getExternalFilesDir(null) ?: context.filesDir,
+                    saveDir,
                     "${File(entry.displayName).nameWithoutExtension}.state.auto"
                 )
                 if (stateFile.exists()) stateFile.delete()

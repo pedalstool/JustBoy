@@ -1,6 +1,9 @@
 package com.justgba.ui
 
 import android.view.KeyEvent
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.layout.Arrangement
@@ -37,6 +40,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
@@ -46,25 +50,31 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.window.DialogWindowProvider
 import com.justgba.input.BindingActions
+import com.justgba.settings.SaveLocations
 import com.justgba.settings.SettingsManager
 import com.justgba.ui.theme.THEME_FOLLOW_SYSTEM
 import com.justgba.ui.theme.THEME_OFF
 import com.justgba.ui.theme.THEME_ON
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.io.File
 
 private enum class SettingsTab(val label: String) {
     General("General"),
     Video("Video"),
     Controller("Controller"),
     Hotkeys("Hotkeys"),
-    Saves("Save states"),
+    Saves("Saves"),
     Cheats("Cheats"),
 }
 
@@ -328,6 +338,7 @@ fun SettingsDialog(
                                 }
                             }
                             SettingsTab.Saves -> {
+                                SaveFolderSection(settingsManager)
                                 SettingsSection("Slot selection") {
                                     Text(
                                         "Hotkey save/load uses this slot.",
@@ -380,6 +391,94 @@ fun SettingsDialog(
                             Text(if (onExit == null) "Close" else "Resume")
                         }
                     }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SaveFolderSection(settingsManager: SettingsManager) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val customPath by settingsManager.saveDirectory.collectAsState("")
+    val primaryRoot = remember { SaveLocations.primaryRoot() }
+    val directory = remember(customPath, primaryRoot) { SaveLocations.resolve(customPath, primaryRoot) }
+    var writable by remember(directory.absolutePath) { mutableStateOf(true) }
+    LaunchedEffect(directory.absolutePath) {
+        writable = withContext(Dispatchers.IO) { SaveLocations.isWritable(directory) }
+    }
+    val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        val chosen = SaveLocations.pathFromTreeUri(uri, primaryRoot)
+        if (chosen == null) {
+            Toast.makeText(context, "Choose a folder on internal storage or the SD card", Toast.LENGTH_LONG).show()
+            return@rememberLauncherForActivityResult
+        }
+        val stored = if (File(chosen).absolutePath == SaveLocations.defaultDirectory(primaryRoot).absolutePath) {
+            ""
+        } else {
+            chosen
+        }
+        scope.launch {
+            settingsManager.setSaveDirectory(stored)
+            writable = withContext(Dispatchers.IO) { SaveLocations.isWritable(SaveLocations.resolve(stored, primaryRoot)) }
+            Toast.makeText(context, "Save folder updated", Toast.LENGTH_SHORT).show()
+        }
+    }
+    val legacyPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {
+        scope.launch {
+            writable = withContext(Dispatchers.IO) { SaveLocations.isWritable(directory) }
+        }
+    }
+
+    SettingsSection("Save folder") {
+        Text(
+            "Battery saves, save states, and cheats are stored here. The default is the Saves folder on the SD card. A change applies to the game that is open.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Text(
+            directory.absolutePath,
+            maxLines = 3,
+            overflow = TextOverflow.Ellipsis,
+        )
+        if (!writable) {
+            Text(
+                "JustBoy cannot write to this folder yet.",
+                color = MaterialTheme.colorScheme.error,
+            )
+            Button(onClick = {
+                val opened = SaveLocations.requestStorageAccess(context) {
+                    legacyPermission.launch(android.Manifest.permission.WRITE_EXTERNAL_STORAGE)
+                }
+                if (!opened) {
+                    Toast.makeText(
+                        context,
+                        "Allow all files access for JustBoy in Android settings",
+                        Toast.LENGTH_LONG,
+                    ).show()
+                }
+            }) {
+                Text("Allow storage access")
+            }
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            OutlinedButton(onClick = {
+                picker.launch(SaveLocations.initialDocumentUri(directory.absolutePath, primaryRoot))
+            }) {
+                Text("Change folder")
+            }
+            if (customPath.isNotBlank()) {
+                TextButton(onClick = {
+                    scope.launch {
+                        settingsManager.setSaveDirectory("")
+                        writable = withContext(Dispatchers.IO) {
+                            SaveLocations.isWritable(SaveLocations.defaultDirectory(primaryRoot))
+                        }
+                    }
+                }) {
+                    Text("Use SD card/Saves")
                 }
             }
         }
