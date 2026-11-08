@@ -44,6 +44,7 @@ import com.justgba.input.BindingActions
 import com.justgba.input.BindingEngine
 import com.justgba.input.GameInput
 import com.justgba.input.InputState
+import com.justgba.settings.Picture
 import com.justgba.settings.SettingsManager
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
@@ -135,6 +136,7 @@ fun GameScreen(
     val gbaColors by settingsManager.gbaColors.collectAsState(false)
     val shader by settingsManager.shader.collectAsState(0)
     val screenSize by settingsManager.screenSize.collectAsState(SettingsManager.SCREEN_SIZE_FIT)
+    val picture by settingsManager.picture.collectAsState(Picture())
     val ffSpeed by settingsManager.ffSpeed.collectAsState(2f)
     val ffAudioMode by settingsManager.ffAudioMode.collectAsState(1)
     val showFps by settingsManager.showFps.collectAsState(false)
@@ -157,6 +159,7 @@ fun GameScreen(
             screenSize = screenSize,
             shaderFiles = shaderFiles,
             shaderScales = shaderScales,
+            picture = picture,
             modifier = Modifier.fillMaxSize()
         )
 
@@ -254,11 +257,11 @@ fun GameScreen(
 @Composable
 private fun EmulatorSurface(
     shader: Int, gbaColors: Boolean, screenSize: Int,
-    shaderFiles: List<String>, shaderScales: List<Int>, modifier: Modifier = Modifier,
+    shaderFiles: List<String>, shaderScales: List<Int>, picture: Picture, modifier: Modifier = Modifier,
 ) {
     AndroidView(factory = { ctx -> ShaderSurface(ctx) }, onRelease = { it.onPause() }, update = { view ->
         view.shaderMode = shader; view.gbaColors = gbaColors; view.screenSize = screenSize
-        view.shaderFiles = shaderFiles; view.shaderScales = shaderScales
+        view.shaderFiles = shaderFiles; view.shaderScales = shaderScales; view.picture = picture
         view.coreWidth = NativeBridge.nativeGetVideoWidth().coerceAtLeast(1)
         view.coreHeight = NativeBridge.nativeGetVideoHeight().coerceAtLeast(1)
     }, modifier = modifier)

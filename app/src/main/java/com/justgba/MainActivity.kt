@@ -86,7 +86,7 @@ class MainActivity : ComponentActivity() {
         lifecycleScope.launch {
             settingsManager.saveDirectory.collect { custom ->
                 val dir = withContext(Dispatchers.IO) {
-                    val directory = SaveLocations.resolve(custom, SaveLocations.primaryRoot())
+                    val directory = SaveLocations.resolve(applicationContext, custom)
                     SaveLocations.ensureDirectory(directory)
                     directory
                 }

@@ -1,5 +1,12 @@
 # Changes
 
+## 1.0.4
+
+- Draw the game in full color and keep each pixel square
+- Add brightness, contrast, saturation, temperature, sharpness, and pixel grid
+- Put every settings page on a tab along the top
+- Use an SD card Saves folder that already contains save files
+
 ## 1.0.3
 
 - Start at the game menu instead of restoring the last session

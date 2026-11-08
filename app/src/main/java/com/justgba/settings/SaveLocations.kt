@@ -19,9 +19,38 @@ object SaveLocations {
 
     fun defaultDirectory(primaryRoot: File): File = File(primaryRoot, FOLDER_NAME)
 
+    fun storageRoots(context: Context): List<File> {
+        val mounted = context.getExternalFilesDirs(null).mapNotNull { files ->
+            files?.parentFile?.parentFile?.parentFile?.parentFile?.takeIf { it.isDirectory }
+        }
+        return (listOf(primaryRoot()) + mounted).distinctBy { it.absolutePath }
+    }
+
+    fun chooseDefaultDirectory(roots: List<File>): File {
+        val primary = roots.firstOrNull() ?: primaryRoot()
+        val saves = roots.map { File(it, FOLDER_NAME) }
+        fun hasSaveFile(dir: File) = dir.isDirectory &&
+            dir.listFiles().orEmpty().any { it.isFile && it.name.endsWith(".sav", ignoreCase = true) }
+        val withSaves = saves.filter { hasSaveFile(it) }
+        val secondaryWithSaves = withSaves.firstOrNull { it.parentFile?.absolutePath != primary.absolutePath }
+        if (secondaryWithSaves != null) return secondaryWithSaves
+        val secondaryExisting = saves.firstOrNull {
+            it.parentFile?.absolutePath != primary.absolutePath && it.isDirectory
+        }
+        if (secondaryExisting != null) return secondaryExisting
+        return withSaves.firstOrNull() ?: File(primary, FOLDER_NAME)
+    }
+
+    fun defaultDirectory(context: Context): File = chooseDefaultDirectory(storageRoots(context))
+
     fun resolve(customPath: String?, primaryRoot: File): File {
         val custom = customPath?.trim().orEmpty()
         return if (custom.isEmpty()) defaultDirectory(primaryRoot) else File(custom)
+    }
+
+    fun resolve(context: Context, customPath: String?): File {
+        val custom = customPath?.trim().orEmpty()
+        return if (custom.isEmpty()) defaultDirectory(context) else File(custom)
     }
 
     fun ensureDirectory(dir: File): Boolean = dir.isDirectory || dir.mkdirs()

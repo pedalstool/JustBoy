@@ -32,23 +32,7 @@ fun ShaderImportPanel(settings: SettingsManager) {
     var message by remember { mutableStateOf("") }
     var importSlot by remember { mutableStateOf(0) }
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-        if (uri != null) {
-            try {
-                val source = context.contentResolver.openInputStream(uri)!!.bufferedReader().use { it.readTextLimited(524288) }
-                require(!source.contains("#include")) { "Includes need a bundled shader; import a self-contained .glsl or .frag file." }
-                require(source.contains("void main")) { "Choose a GLSL shader file, not a .glslp or .slang preset." }
-                val dir = File(context.filesDir, "imported-shaders").apply { mkdirs() }
-                val name = context.contentResolver.query(uri, arrayOf(android.provider.OpenableColumns.DISPLAY_NAME), null, null, null)?.use { c ->
-                    if (c.moveToFirst()) c.getString(0) else null
-                } ?: "shader.glsl"
-                val file = File(dir, "${System.currentTimeMillis()}-${File(name).name}")
-                file.writeText(source)
-                scope.launch { settings.setShaderFile(importSlot, file.path) }
-                message = "Imported $name. Compile errors will appear when the game resumes."
-            } catch (e: Exception) {
-                message = e.message ?: "Import failed"
-            }
-        }
+        if (uri != null) importShaderDocument(context, uri, importSlot, settings, scope) { message = it }
     }
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Text(
@@ -74,6 +58,31 @@ fun ShaderImportPanel(settings: SettingsManager) {
             }
         }
         if (message.isNotBlank()) Text(message, color = MaterialTheme.colorScheme.primary)
+    }
+}
+
+internal fun importShaderDocument(
+    context: android.content.Context,
+    uri: android.net.Uri,
+    slot: Int,
+    settings: SettingsManager,
+    scope: kotlinx.coroutines.CoroutineScope,
+    onMessage: (String) -> Unit,
+) {
+    try {
+        val source = context.contentResolver.openInputStream(uri)!!.bufferedReader().use { it.readTextLimited(524288) }
+        require(!source.contains("#include")) { "Includes need a bundled shader; import a self-contained .glsl or .frag file." }
+        require(source.contains("void main")) { "Choose a GLSL shader file, not a .glslp or .slang preset." }
+        val dir = File(context.filesDir, "imported-shaders").apply { mkdirs() }
+        val name = context.contentResolver.query(uri, arrayOf(android.provider.OpenableColumns.DISPLAY_NAME), null, null, null)?.use { c ->
+            if (c.moveToFirst()) c.getString(0) else null
+        } ?: "shader.glsl"
+        val file = File(dir, "${System.currentTimeMillis()}-${File(name).name}")
+        file.writeText(source)
+        scope.launch { settings.setShaderFile(slot, file.path) }
+        onMessage("Imported $name. Compile errors will appear when the game resumes.")
+    } catch (e: Exception) {
+        onMessage(e.message ?: "Import failed")
     }
 }
 

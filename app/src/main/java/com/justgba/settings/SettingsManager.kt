@@ -30,6 +30,12 @@ class SettingsManager(private val context: Context) {
         val RESUME_AUTOSAVE = booleanPreferencesKey("resume_autosave")
         const val SCREEN_SIZE_FIT = 0
         const val SCREEN_SIZE_INTEGER = 1
+        val PICTURE_BRIGHTNESS = floatPreferencesKey("picture_brightness")
+        val PICTURE_CONTRAST = floatPreferencesKey("picture_contrast")
+        val PICTURE_SATURATION = floatPreferencesKey("picture_saturation")
+        val PICTURE_TEMPERATURE = floatPreferencesKey("picture_temperature")
+        val PICTURE_SHARPNESS = floatPreferencesKey("picture_sharpness")
+        val PICTURE_GRID = floatPreferencesKey("picture_grid")
     }
 
     val bindings: Flow<Map<String,String>> = context.dataStore.data.map { p ->
@@ -131,6 +137,29 @@ class SettingsManager(private val context: Context) {
         }
     }
 
+    val picture: Flow<Picture> = context.dataStore.data.map { prefs ->
+        Picture(
+            brightness = prefs[PICTURE_BRIGHTNESS] ?: 1f,
+            contrast = prefs[PICTURE_CONTRAST] ?: 1f,
+            saturation = prefs[PICTURE_SATURATION] ?: 1f,
+            temperature = prefs[PICTURE_TEMPERATURE] ?: 0f,
+            sharpness = prefs[PICTURE_SHARPNESS] ?: 0f,
+            pixelGrid = prefs[PICTURE_GRID] ?: 0f,
+        ).sanitized()
+    }
+
+    suspend fun setPicture(picture: Picture) {
+        val next = picture.sanitized()
+        context.dataStore.edit { prefs ->
+            prefs[PICTURE_BRIGHTNESS] = next.brightness
+            prefs[PICTURE_CONTRAST] = next.contrast
+            prefs[PICTURE_SATURATION] = next.saturation
+            prefs[PICTURE_TEMPERATURE] = next.temperature
+            prefs[PICTURE_SHARPNESS] = next.sharpness
+            prefs[PICTURE_GRID] = next.pixelGrid
+        }
+    }
+
     suspend fun setScreenSize(size: Int) {
         val value = when (size) {
             SCREEN_SIZE_FIT, SCREEN_SIZE_INTEGER -> size
@@ -160,9 +189,8 @@ class SettingsManager(private val context: Context) {
         val next = path.trim()
         val previous = saveDirectory.first()
         withContext(Dispatchers.IO) {
-            val root = SaveLocations.primaryRoot()
-            val from = SaveLocations.resolve(previous, root)
-            val to = SaveLocations.resolve(next, root)
+            val from = SaveLocations.resolve(context, previous)
+            val to = SaveLocations.resolve(context, next)
             runCatching { SaveLocations.copyMissingSaves(from, to) }
             context.getExternalFilesDir(null)?.let { legacy ->
                 runCatching { SaveLocations.copyMissingSaves(legacy, to) }
@@ -174,8 +202,7 @@ class SettingsManager(private val context: Context) {
     }
 
     suspend fun preparedSaveDirectory(): File = withContext(Dispatchers.IO) {
-        val root = SaveLocations.primaryRoot()
-        val dir = SaveLocations.resolve(saveDirectory.first(), root)
+        val dir = SaveLocations.resolve(context, saveDirectory.first())
         SaveLocations.ensureDirectory(dir)
         context.getExternalFilesDir(null)?.let { legacy ->
             runCatching { SaveLocations.copyMissingSaves(legacy, dir) }

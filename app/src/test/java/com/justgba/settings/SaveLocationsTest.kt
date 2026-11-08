@@ -21,6 +21,30 @@ class SaveLocationsTest {
         assertEquals(File(primary, "Saves").absolutePath, SaveLocations.defaultDirectory(primary).absolutePath)
     }
 
+    @Test fun defaultPrefersTheSdCardSavesFolderThatAlreadyHasFiles() {
+        val primary = temp.newFolder("internal")
+        val sd = temp.newFolder("sd")
+        File(primary, "Saves").mkdirs()
+        val sdSaves = File(sd, "Saves")
+        sdSaves.mkdirs()
+        File(sdSaves, "Golden Sun (USA, Europe).sav").writeBytes(byteArrayOf(1))
+        assertEquals(
+            sdSaves.absolutePath,
+            SaveLocations.chooseDefaultDirectory(listOf(primary, sd)).absolutePath,
+        )
+    }
+
+    @Test fun defaultUsesAnExistingSdCardSavesFolder() {
+        val primary = temp.newFolder("internal-empty")
+        val sd = temp.newFolder("sd-empty")
+        val sdSaves = File(sd, "Saves")
+        sdSaves.mkdirs()
+        assertEquals(
+            sdSaves.absolutePath,
+            SaveLocations.chooseDefaultDirectory(listOf(primary, sd)).absolutePath,
+        )
+    }
+
     @Test fun customPathIsKept() {
         val chosen = temp.newFolder("chosen")
         assertEquals(chosen.absolutePath, SaveLocations.resolve(chosen.absolutePath, temp.root).absolutePath)

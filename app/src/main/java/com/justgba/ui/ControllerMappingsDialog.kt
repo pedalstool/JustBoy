@@ -88,7 +88,7 @@ fun BindingEditor(settings: SettingsManager, actions: List<BindingAction>) {
     }
 }
 
-private fun bindingNames(value: String): String {
+internal fun bindingNames(value: String): String {
     val chords = BindingActions.parse(value)
     if (chords.isEmpty()) return "Unbound"
     return chords.joinToString(" / ") { keys ->

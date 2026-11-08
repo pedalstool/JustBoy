@@ -35,6 +35,7 @@ class ShaderSurface(context: Context) : GLSurfaceView(context), GLSurfaceView.Re
     @Volatile var shaderMode = 0
     @Volatile var gbaColors = false
     @Volatile var screenSize = 0
+    @Volatile var picture = com.justgba.settings.Picture()
     @Volatile var shaderFiles: List<String> = listOf("", "")
     @Volatile var shaderScales: List<Int> = listOf(1, 1)
     @Volatile var coreWidth = 240
@@ -50,6 +51,16 @@ class ShaderSurface(context: Context) : GLSurfaceView(context), GLSurfaceView.Re
     private var signature = ""
     private var locImage = -1
     private var locGba = -1
+    private var locCrisp = -1
+    private var locTexSize = -1
+    private var locOutSize = -1
+    private var locCoreSize = -1
+    private var locBrightness = -1
+    private var locContrast = -1
+    private var locSaturation = -1
+    private var locTemperature = -1
+    private var locSharpness = -1
+    private var locGrid = -1
     private var locPos = -1
     private var locUv = -1
     private val mvp = floatArrayOf(1f, 0f, 0f, 0f, 0f, -1f, 0f, 0f, 0f, 0f, 1f, 0f, 0f, 0f, 0f, 1f)
@@ -67,6 +78,7 @@ class ShaderSurface(context: Context) : GLSurfaceView(context), GLSurfaceView.Re
 
     init {
         setEGLContextClientVersion(3)
+        setEGLConfigChooser(8, 8, 8, 8, 16, 0)
         setRenderer(this)
         preserveEGLContextOnPause = true
     }
@@ -90,6 +102,16 @@ class ShaderSurface(context: Context) : GLSurfaceView(context), GLSurfaceView.Re
     private fun cacheDisplayLocations() {
         locImage = glGetUniformLocation(program, "image")
         locGba = glGetUniformLocation(program, "gba")
+        locCrisp = glGetUniformLocation(program, "crisp")
+        locTexSize = glGetUniformLocation(program, "texSize")
+        locOutSize = glGetUniformLocation(program, "outSize")
+        locCoreSize = glGetUniformLocation(program, "coreSize")
+        locBrightness = glGetUniformLocation(program, "brightness")
+        locContrast = glGetUniformLocation(program, "contrast")
+        locSaturation = glGetUniformLocation(program, "saturation")
+        locTemperature = glGetUniformLocation(program, "temperature")
+        locSharpness = glGetUniformLocation(program, "sharpness")
+        locGrid = glGetUniformLocation(program, "pixelGrid")
         locPos = glGetAttribLocation(program, "pos")
         locUv = glGetAttribLocation(program, "uv")
     }
@@ -221,26 +243,27 @@ class ShaderSurface(context: Context) : GLSurfaceView(context), GLSurfaceView.Re
         val mode = activeShaderMode()
         val viewport = outputViewport()
         val x = viewport[0]; val y = viewport[1]; val w = viewport[2]; val h = viewport[3]
+        val pic = picture
         glViewport(x, y, w, h); glUseProgram(program); glBindTexture(GL_TEXTURE_2D, input)
-        val filter = if (mode == 1) GL_LINEAR else GL_NEAREST
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, filter)
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, filter)
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR)
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR)
         if (locImage >= 0) glUniform1i(locImage, 0)
         if (locGba >= 0) glUniform1i(locGba, if (gbaColors) 1 else 0)
+        if (locCrisp >= 0) glUniform1i(locCrisp, if (mode == 1) 0 else 1)
+        if (locTexSize >= 0) glUniform2f(locTexSize, iw.toFloat(), ih.toFloat())
+        if (locOutSize >= 0) glUniform2f(locOutSize, w.toFloat(), h.toFloat())
+        if (locCoreSize >= 0) glUniform2f(locCoreSize, srcW.toFloat(), srcH.toFloat())
+        if (locBrightness >= 0) glUniform1f(locBrightness, pic.brightness)
+        if (locContrast >= 0) glUniform1f(locContrast, pic.contrast)
+        if (locSaturation >= 0) glUniform1f(locSaturation, pic.saturation)
+        if (locTemperature >= 0) glUniform1f(locTemperature, pic.temperature)
+        if (locSharpness >= 0) glUniform1f(locSharpness, pic.sharpness)
+        if (locGrid >= 0) glUniform1f(locGrid, pic.pixelGrid)
         draw(locPos, locUv)
     }
 
     private fun outputViewport(): IntArray {
-        val nw = coreWidth.coerceAtLeast(1); val nh = coreHeight.coerceAtLeast(1)
-        val maxInteger = minOf(width / nw, height / nh).coerceAtLeast(1)
-        val (w, h) = when (val requested = screenSize) {
-            1 -> { val n = maxInteger; nw * n to nh * n }
-            in 2..7 -> { val n = minOf(requested, maxInteger); nw * n to nh * n }
-            else -> {
-                val fitW = minOf(width, height * nw / nh)
-                fitW to fitW * nh / nw
-            }
-        }
+        val (w, h) = VideoFrame.size(width, height, coreWidth, coreHeight, screenSize)
         return intArrayOf((width - w) / 2, (height - h) / 2, w, h)
     }
 

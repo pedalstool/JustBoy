@@ -42,64 +42,146 @@ object CheatStore {
     }
 }
 @Composable
-fun CheatPanel(statePath: String) {
-    val context=LocalContext.current
-    var entries by remember(statePath){mutableStateOf(CheatStore.load(statePath))}
-    var name by remember{mutableStateOf("")}; var code by remember{mutableStateOf("")}
-    var message by remember{mutableStateOf("")}
-    var editing by remember{mutableStateOf<Int?>(null)}
-    fun commit(next: List<CheatEntry>) {
-        try { CheatStore.save(statePath,next); entries=next; message=CheatStore.apply(next).ifBlank{"Cheats updated"} }
-        catch(e:Exception){message=e.message ?: "Cheat update failed"}
-    }
-    val picker=rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-        if(uri!=null) try {
-            val text=context.contentResolver.openInputStream(uri)!!.bufferedReader().use { it.readText() }
-            require(text.length<=65536){"Cheat file too large"}
-            val imported=mutableListOf<CheatEntry>()
-            val codes=Regex("(?m)^cheat(\\d+)_code\\s*=\\s*\"([^\"]*)\"").findAll(text).toList()
-            if(codes.isNotEmpty()) for(m in codes) {
-                val id=m.groupValues[1]
-                val desc=Regex("(?m)^cheat${id}_desc\\s*=\\s*\"([^\"]*)\"").find(text)?.groupValues?.get(1) ?: "Cheat $id"
-                imported.add(CheatEntry(desc,CheatStore.normalize(m.groupValues[2].replace('+','\n').replace("\\n","\n")),false))
-            } else imported.add(CheatEntry("Imported cheat",CheatStore.normalize(text),false))
-            require(entries.size+imported.size<=20){"Maximum 20 cheats per game"}; commit(entries+imported)
-        } catch(e:Exception){message=e.message ?: "Import failed"}
-    }
-    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        Text(
-            "GBA: CodeBreaker, GameShark, or Action Replay. GB/GBC: Game Genie or GameShark. One code per line. Codes depend on the exact game/region.",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+fun CheatMenu(statePath: String?, keys: MenuKeys) {
+    if (statePath == null) {
+        MenuList(
+            rows = listOf(MenuRow("Cheats", detail = "Open a game to add and toggle cheats.")),
+            keys = keys,
+            resetKey = "cheats-empty",
+            modifier = Modifier.fillMaxSize(),
         )
-        entries.forEachIndexed { i,e ->
-            Surface(
-                shape = MaterialTheme.shapes.small,
-                color = MaterialTheme.colorScheme.surfaceContainerHighest,
-            ) {
-                Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Switch(checked=e.enabled,onCheckedChange={value -> commit(entries.mapIndexed{j,c -> if(i==j)c.copy(enabled=value) else c})})
-                        Text(e.name,modifier=Modifier.weight(1f).padding(start = 8.dp))
+        return
+    }
+    val context = LocalContext.current
+    var entries by remember(statePath) { mutableStateOf(CheatStore.load(statePath)) }
+    var name by remember { mutableStateOf("") }
+    var code by remember { mutableStateOf("") }
+    var message by remember { mutableStateOf("") }
+    var screen by remember { mutableStateOf("list") }
+    var selected by remember { mutableIntStateOf(-1) }
+    var editing by remember { mutableStateOf(false) }
+    fun commit(next: List<CheatEntry>) {
+        try {
+            CheatStore.save(statePath, next)
+            entries = next
+            message = CheatStore.apply(next).ifBlank { "Cheats updated" }
+        } catch (e: Exception) {
+            message = e.message ?: "Cheat update failed"
+        }
+    }
+    val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) try {
+            val text = context.contentResolver.openInputStream(uri)!!.bufferedReader().use { it.readText() }
+            require(text.length <= 65536) { "Cheat file too large" }
+            val imported = mutableListOf<CheatEntry>()
+            val codes = Regex("(?m)^cheat(\\d+)_code\\s*=\\s*\"([^\"]*)\"").findAll(text).toList()
+            if (codes.isNotEmpty()) for (m in codes) {
+                val id = m.groupValues[1]
+                val desc = Regex("(?m)^cheat${id}_desc\\s*=\\s*\"([^\"]*)\"").find(text)?.groupValues?.get(1) ?: "Cheat $id"
+                imported.add(CheatEntry(desc, CheatStore.normalize(m.groupValues[2].replace('+', '\n').replace("\\n", "\n")), false))
+            } else imported.add(CheatEntry("Imported cheat", CheatStore.normalize(text), false))
+            require(entries.size + imported.size <= 20) { "Maximum 20 cheats per game" }
+            commit(entries + imported)
+        } catch (e: Exception) {
+            message = e.message ?: "Import failed"
+        }
+    }
+    DisposableEffect(Unit) { onDispose { keys.nestedBack = null } }
+    Column(Modifier.fillMaxSize()) {
+        if (message.isNotBlank()) {
+            Text(
+                message,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp),
+            )
+        }
+        if (screen == "actions" && selected in entries.indices) {
+            val entry = entries[selected]
+            MenuList(
+                rows = listOf(
+                    MenuRow("On", if (entry.enabled) "Selected" else "", onClick = {
+                        commit(entries.mapIndexed { i, c -> if (i == selected) c.copy(enabled = true) else c })
+                        screen = "list"
+                    }),
+                    MenuRow("Off", if (!entry.enabled) "Selected" else "", onClick = {
+                        commit(entries.mapIndexed { i, c -> if (i == selected) c.copy(enabled = false) else c })
+                        screen = "list"
+                    }),
+                    MenuRow("Edit", onClick = { name = entry.name; code = entry.code; editing = true }),
+                    MenuRow("Delete", destructive = true, onClick = {
+                        commit(entries.filterIndexed { i, _ -> i != selected })
+                        screen = "list"
+                    }),
+                ),
+                keys = keys,
+                resetKey = "cheat-$selected",
+                modifier = Modifier.weight(1f).fillMaxWidth(),
+            )
+        } else {
+            MenuList(
+                rows = buildList {
+                    entries.forEachIndexed { i, entry ->
+                        add(MenuRow(
+                            entry.name,
+                            if (entry.enabled) "On" else "Off",
+                            entry.code.lineSequence().firstOrNull().orEmpty(),
+                            onClick = { selected = i; screen = "actions" },
+                        ))
                     }
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        FilledTonalButton(onClick={editing=i;name=e.name;code=e.code}){Text("Edit")}
-                        TextButton(onClick={commit(entries.filterIndexed{j,_->i!=j})}){Text("Delete", color = MaterialTheme.colorScheme.error)}
-                    }
+                    add(MenuRow("Add cheat", onClick = {
+                        selected = -1
+                        name = ""
+                        code = ""
+                        editing = true
+                    }))
+                    add(MenuRow("Import cheat file", onClick = { picker.launch(arrayOf("*/*")) }))
+                },
+                keys = keys,
+                resetKey = "cheats",
+                modifier = Modifier.weight(1f).fillMaxWidth(),
+            )
+        }
+    }
+    if (editing) {
+        AlertDialog(
+            onDismissRequest = { editing = false },
+            title = { Text(if (selected in entries.indices) "Edit cheat" else "Add cheat") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        "One code pair per line. GBA uses CodeBreaker, GameShark, or Action Replay. GB and GBC use Game Genie or GameShark.",
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                    OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("Name") }, modifier = Modifier.fillMaxWidth())
+                    OutlinedTextField(value = code, onValueChange = { code = it }, label = { Text("Code") }, minLines = 3, modifier = Modifier.fillMaxWidth())
                 }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    try {
+                        require(name.isNotBlank()) { "Enter a name" }
+                        require(selected in entries.indices || entries.size < 20) { "Maximum 20 cheats" }
+                        val entry = CheatEntry(name.trim(), CheatStore.normalize(code), entries.getOrNull(selected)?.enabled == true)
+                        val next = if (selected in entries.indices) entries.mapIndexed { i, c -> if (i == selected) entry else c } else entries + entry
+                        commit(next)
+                        editing = false
+                        screen = "list"
+                    } catch (e: Exception) {
+                        message = e.message ?: "Invalid cheat"
+                    }
+                }) { Text("Save") }
+            },
+            dismissButton = { TextButton(onClick = { editing = false }) { Text("Cancel") } },
+        )
+    }
+    SideEffect {
+        if (editing) keys.capture = false
+        keys.nestedBack = {
+            when {
+                editing -> { editing = false; true }
+                screen != "list" -> { screen = "list"; true }
+                else -> false
             }
         }
-        OutlinedTextField(value=name,onValueChange={name=it},label={Text("Cheat name")},modifier=Modifier.fillMaxWidth())
-        OutlinedTextField(value=code,onValueChange={code=it},label={Text("Code (one pair per line)")},minLines=2,modifier=Modifier.fillMaxWidth())
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Button(onClick={try {
-                require(name.isNotBlank()){"Enter a name"}; require(editing!=null || entries.size<20){"Maximum 20 cheats"}
-                val e=CheatEntry(name.trim(),CheatStore.normalize(code),false)
-                val next=if(editing!=null)entries.mapIndexed{i,c->if(i==editing)e else c} else entries+e
-                commit(next);name="";code="";editing=null
-            }catch(e:Exception){message=e.message ?: "Invalid cheat"}}){Text(if(editing==null)"Add" else "Save edit")}
-            OutlinedButton(onClick={picker.launch(arrayOf("*/*"))}){Text("Import .cht / .txt")}
-        }
-        if(message.isNotBlank()) Text(message, color = MaterialTheme.colorScheme.primary)
     }
 }
