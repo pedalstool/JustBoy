@@ -59,6 +59,7 @@ class MainActivity : ComponentActivity() {
     private lateinit var recentRomsManager: RecentRomsManager
     private var currentRomPath by mutableStateOf<String?>(null)
     private var launchedExternally = false
+    private var resumeLastSession = false
 
     override fun dispatchKeyEvent(event: android.view.KeyEvent): Boolean {
         if (event.action == android.view.KeyEvent.ACTION_DOWN || event.action == android.view.KeyEvent.ACTION_UP) {
@@ -97,6 +98,11 @@ class MainActivity : ComponentActivity() {
                     currentStatePath = currentStatePath?.let { File(dir, File(it).name).absolutePath }
                 }
             }
+        }
+
+        lifecycleScope.launch {
+            resumeLastSession = settingsManager.resumeAutosave.first()
+            settingsManager.resumeAutosave.collect { resumeLastSession = it }
         }
 
         lifecycleScope.launch {
@@ -213,8 +219,7 @@ class MainActivity : ComponentActivity() {
         com.justgba.input.InputState.clear()
         emulatorThread?.pause()
         audioEngine?.pause()
-        currentStatePath?.let { saveAtomically(it) { path -> NativeBridge.nativeStateSave(path) } }
-        currentSavePath?.let { saveAtomically(it) { path -> NativeBridge.nativeBatterySave(path) } }
+        persistProgress()
     }
 
     override fun onResume() {
@@ -351,9 +356,23 @@ class MainActivity : ComponentActivity() {
         emulatorThread = thread
     }
 
+    private fun persistProgress() {
+        if (resumeLastSession) {
+            currentStatePath?.let { saveAtomically(it) { path -> NativeBridge.nativeStateSave(path) } }
+        }
+        currentSavePath?.let { saveAtomically(it) { path -> NativeBridge.nativeBatterySave(path) } }
+    }
+
     private fun saveAtomically(path: String, writer: (String) -> Boolean) {
         val temporary = File("$path.tmp")
-        if (!writer(temporary.path) || !temporary.renameTo(File(path))) {
+        if (!writer(temporary.path)) {
+            temporary.delete()
+            Log.e(TAG, "Could not save $path")
+            return
+        }
+        if (!temporary.isFile) return
+        if (!temporary.renameTo(File(path))) {
+            temporary.delete()
             Log.e(TAG, "Could not save $path")
         }
     }
@@ -361,8 +380,7 @@ class MainActivity : ComponentActivity() {
     private fun stopEmulation() {
         emulatorThread?.stop()
         emulatorThread = null
-        currentStatePath?.let { saveAtomically(it) { path -> NativeBridge.nativeStateSave(path) } }
-        currentSavePath?.let { saveAtomically(it) { path -> NativeBridge.nativeBatterySave(path) } }
+        persistProgress()
         audioEngine?.release()
         audioEngine = null
         currentSavePath = null

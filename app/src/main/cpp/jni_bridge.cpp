@@ -9,6 +9,8 @@
 #include <mutex>
 #include <string>
 
+#include <unistd.h>
+
 #include <fcntl.h>
 
 #include <mgba/core/blip_buf.h>
@@ -16,6 +18,8 @@
 #include <mgba/core/config.h>
 #include <mgba/core/core.h>
 #include <mgba/core/serialize.h>
+#include <mgba/internal/gb/gb.h>
+#include <mgba/internal/gba/gba.h>
 #include <mgba-util/vfs.h>
 
 #define LOG_TAG "JustBoy-JNI"
@@ -277,14 +281,46 @@ Java_com_justgba_emulator_NativeBridge_nativeSetSkipRender(JNIEnv*, jclass, jboo
     skip_render.store(skip != JNI_FALSE, std::memory_order_relaxed);
 }
 
+static bool cartridge_save_dirty() {
+    if (!core || !core->board) return false;
+    switch (core->platform(core)) {
+    case mPLATFORM_GBA:
+        return static_cast<struct GBA*>(core->board)->memory.savedata.dirty != 0;
+    case mPLATFORM_GB:
+        return static_cast<struct GB*>(core->board)->sramDirty != 0;
+    default:
+        return false;
+    }
+}
+
+static bool save_image_blank(const uint8_t* data, size_t size) {
+    for (size_t i = 0; i < size; ++i) {
+        if (data[i] != 0xFF) return false;
+    }
+    return true;
+}
+
+static bool real_save_exists(const char* tmpPath) {
+    std::string path(tmpPath);
+    constexpr char suffix[] = ".tmp";
+    constexpr size_t suffixLen = sizeof(suffix) - 1;
+    if (path.size() >= suffixLen && path.compare(path.size() - suffixLen, suffixLen, suffix) == 0) {
+        path.resize(path.size() - suffixLen);
+    }
+    return access(path.c_str(), F_OK) == 0;
+}
+
 JNIEXPORT jboolean JNICALL
 Java_com_justgba_emulator_NativeBridge_nativeBatterySave(JNIEnv* env, jclass, jstring savePath) {
     if (!core) return JNI_FALSE;
+    // Opening a game allocates blank SRAM/flash. Only write a file after the cart changes it.
+    if (!cartridge_save_dirty()) return JNI_TRUE;
     const char* path = env->GetStringUTFChars(savePath, nullptr);
     if (!path) return JNI_FALSE;
     void* sram = nullptr;
     size_t size = core->savedataClone(core, &sram);
-    if (!size || !sram) {
+    if (!size || !sram || (save_image_blank(static_cast<uint8_t*>(sram), size) && !real_save_exists(path))) {
+        free(sram);
         env->ReleaseStringUTFChars(savePath, path);
         return JNI_TRUE;
     }

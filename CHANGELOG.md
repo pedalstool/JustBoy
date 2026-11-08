@@ -1,5 +1,11 @@
 # Changes
 
+## 1.0.10
+
+- Opening a game no longer writes a save file on the way out
+- A `.sav` is written only after the game changes cartridge save data
+- The session snapshot is written only when Resume last session is on
+
 ## 1.0.9
 
 - Put Settings above Restart in the quick menu, and remove Resume. B or the menu button returns to the game

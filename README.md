@@ -2,7 +2,7 @@
 <p align="center">
   <img alt="Platform" src="https://img.shields.io/badge/Android-ARM64-8ce1b1?style=flat-square">
   <img alt="License" src="https://img.shields.io/badge/License-GPL--2.0-blue?style=flat-square">
-  <img alt="Release" src="https://img.shields.io/badge/Release-1.0.9-blue?style=flat-square">
+  <img alt="Release" src="https://img.shields.io/badge/Release-1.0.10-blue?style=flat-square">
   <img alt="Systems" src="https://img.shields.io/badge/Systems-GBA%20%7C%20GB%20%7C%20GBC-8ce1b1?style=flat-square">
 </p>
 
