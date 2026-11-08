@@ -1,5 +1,9 @@
 # Changes
 
+## 1.0.8
+
+- Screen size is Fit, Integer, and 2x through 5x. 6x was the same as Integer, and 7x could not fit
+
 ## 1.0.7
 
 - The menu button opens a quick menu for the save slot, save, load, resume, restart, quit, and settings

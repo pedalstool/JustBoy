@@ -77,8 +77,6 @@ private val ScreenSizes = listOf(
     3 to "3x",
     4 to "4x",
     5 to "5x",
-    6 to "6x",
-    7 to "7x",
 )
 
 private val ThemeOptions = listOf(
@@ -319,7 +317,7 @@ fun SettingsDialog(
                                     "Draws the frames in between. The game keeps its normal speed.",
                                     onClick = { picker = "fps"; picking = true },
                                 ),
-                                MenuRow("Screen size", labelOf(ScreenSizes, screenSize), "Fit keeps the game's shape. Integer keeps every pixel the same size.", onClick = { picker = "size"; picking = true }),
+                                MenuRow("Screen size", labelOf(ScreenSizes, screenSize), "Fit fills the screen. Integer is the largest size that keeps each pixel square. 2x doubles the game's pixels.", onClick = { picker = "size"; picking = true }),
                                 MenuRow("Shader", labelOf(VideoShaders, shader), onClick = { picker = "shader"; picking = true }),
                                 MenuRow(
                                     "Original GBA colors",

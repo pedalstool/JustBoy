@@ -103,7 +103,8 @@ class SettingsManager(private val context: Context) {
     val screenSize: Flow<Int> = context.dataStore.data.map { prefs ->
         when (val value = prefs[SCREEN_SIZE] ?: SCREEN_SIZE_FIT) {
             SCREEN_SIZE_FIT, SCREEN_SIZE_INTEGER -> value
-            in 2..7 -> value
+            in 2..5 -> value
+            6, 7 -> SCREEN_SIZE_INTEGER
             else -> SCREEN_SIZE_FIT
         }
     }
@@ -181,7 +182,8 @@ class SettingsManager(private val context: Context) {
     suspend fun setScreenSize(size: Int) {
         val value = when (size) {
             SCREEN_SIZE_FIT, SCREEN_SIZE_INTEGER -> size
-            in 2..7 -> size
+            in 2..5 -> size
+            6, 7 -> SCREEN_SIZE_INTEGER
             else -> SCREEN_SIZE_FIT
         }
         context.dataStore.edit { prefs ->

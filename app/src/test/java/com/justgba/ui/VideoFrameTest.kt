@@ -24,9 +24,22 @@ class VideoFrameTest {
     }
 
     @Test fun fixedScaleStaysInsideTheView() {
-        val (w, h) = VideoFrame.size(800, 480, 240, 160, 7)
+        val (w, h) = VideoFrame.size(800, 480, 240, 160, 5)
         assertEquals(720, w)
         assertEquals(480, h)
         assertTrue(w <= 800 && h <= 480)
+    }
+
+    @Test fun twoTimesDoublesTheGbaFrame() {
+        val (w, h) = VideoFrame.size(1920, 1080, 240, 160, 2)
+        assertEquals(480, w)
+        assertEquals(320, h)
+    }
+
+    @Test fun sixAndSevenMatchIntegerOn1080p() {
+        val integer = VideoFrame.size(1920, 1080, 240, 160, 1)
+        assertEquals(1440 to 960, integer)
+        assertEquals(integer, VideoFrame.size(1920, 1080, 240, 160, 6))
+        assertEquals(integer, VideoFrame.size(1920, 1080, 240, 160, 7))
     }
 }
