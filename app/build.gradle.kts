@@ -10,11 +10,11 @@ android {
     compileSdk = 34
 
     defaultConfig {
-        applicationId = "com.justgba"
+        applicationId = "com.pokedaisy.app"
         minSdk = 26
         targetSdk = 34
-        versionCode = 12
-        versionName = "1.0.11"
+        versionCode = 15
+        versionName = "1.0.14"
 
         ndk {
             abiFilters += "arm64-v8a"

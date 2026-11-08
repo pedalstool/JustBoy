@@ -53,6 +53,65 @@ object SaveLocations {
         return if (custom.isEmpty()) defaultDirectory(context) else File(custom)
     }
 
+    fun systemDirectory(saveRoot: File, displayName: String?, sourceHint: String?, romFile: File? = null): File {
+        val system = systemFolder(displayName, sourceHint, romFile)
+        if (saveRoot.name.equals(system, ignoreCase = true)) return saveRoot
+        return File(saveRoot, system)
+    }
+
+    fun systemFolder(displayName: String?, sourceHint: String?, romFile: File? = null): String {
+        val hint = try {
+            java.net.URLDecoder.decode(sourceHint.orEmpty(), Charsets.UTF_8.name())
+        } catch (_: Exception) {
+            sourceHint.orEmpty()
+        }
+        val segments = hint.replace('\\', '/').split('/', ':').map { it.trim() }.filter { it.isNotEmpty() }
+        val fileName = displayName?.takeIf { it.isNotBlank() } ?: segments.lastOrNull().orEmpty()
+        val extension = fileName.substringAfterLast('.', "").lowercase()
+        val romExtension = romFile?.extension?.lowercase().orEmpty()
+        if (extension == "gba" || extension == "agb" || romExtension == "gba" || romExtension == "agb") return "GBA"
+        if (extension == "gbc" || extension == "cgb" || romExtension == "gbc" || romExtension == "cgb") return "GBC"
+        if (isColorCartridge(romFile)) return "GBC"
+        for (dir in segments.dropLast(1).asReversed()) {
+            directorySystem(dir)?.let { return it }
+        }
+        if (extension == "gb" || extension == "sgb" || extension == "dmg" ||
+            romExtension == "gb" || romExtension == "sgb" || romExtension == "dmg"
+        ) {
+            return "GB"
+        }
+        return "GBA"
+    }
+
+    private fun directorySystem(dir: String): String? {
+        val name = dir.lowercase()
+        return when {
+            name == "gbc" || name == "cgb" || name.endsWith("game boy color") -> "GBC"
+            name == "gba" || name == "agb" || name.endsWith("game boy advance") -> "GBA"
+            name == "gb" || name == "dmg" || name == "sgb" || name == "gameboy" || name.endsWith("game boy") -> "GB"
+            else -> null
+        }
+    }
+
+    fun isColorCartridge(file: File?): Boolean {
+        if (file == null || !file.isFile || file.length() <= 0x143) return false
+        return try {
+            file.inputStream().use { input ->
+                val bytes = ByteArray(0x344)
+                val read = input.read(bytes)
+                colorFlag(bytes, read, 0x143) || colorFlag(bytes, read, 0x143 + 512)
+            }
+        } catch (_: Exception) {
+            false
+        }
+    }
+
+    private fun colorFlag(bytes: ByteArray, read: Int, offset: Int): Boolean {
+        if (offset >= read) return false
+        val flag = bytes[offset].toInt() and 0xFF
+        return flag == 0x80 || flag == 0xC0
+    }
+
     fun ensureDirectory(dir: File): Boolean = dir.isDirectory || dir.mkdirs()
 
     fun isWritable(dir: File): Boolean {
@@ -80,6 +139,16 @@ object SaveLocations {
 
     fun copyMissingSaves(from: File, to: File): Int {
         if (!from.isDirectory || from.absolutePath == to.absolutePath) return 0
+        if (!ensureDirectory(to)) return 0
+        var copied = copySaveFiles(from, to)
+        for (system in listOf("GBA", "GB", "GBC")) {
+            copied += copySaveFiles(File(from, system), File(to, system))
+        }
+        return copied
+    }
+
+    private fun copySaveFiles(from: File, to: File): Int {
+        if (!from.isDirectory) return 0
         if (!ensureDirectory(to)) return 0
         var copied = 0
         for (file in from.listFiles().orEmpty()) {

@@ -44,6 +44,20 @@
                 <data android:pathPattern=".*\\.zip" />
             </intent-filter>
         </activity>
+        <!-- NeoStation's Standalone PokeDaisy entry on GBA, GB, and GBC starts this component. -->
+        <activity-alias
+            android:name="com.pokedaisy.app.LaunchActivity"
+            android:targetActivity=".MainActivity"
+            android:exported="true"
+            android:launchMode="singleTask">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:scheme="file" />
+                <data android:scheme="content" />
+                <data android:mimeType="*/*" />
+            </intent-filter>
+        </activity-alias>
     </application>
 </manifest>
 

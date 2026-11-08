@@ -74,6 +74,61 @@ class SaveLocationsTest {
         assertNull(SaveLocations.pathFromDocumentId("Saves", temp.root))
     }
 
+    @Test fun gbaRomSavesUnderSavesGba() {
+        val saves = temp.newFolder("ROMs", "Saves")
+        val dir = SaveLocations.systemDirectory(
+            saves,
+            "Golden Sun (USA, Europe).gba",
+            "/storage/1234-ABCD/ROMs/GBA/Golden Sun (USA, Europe).gba",
+        )
+        assertEquals(File(saves, "GBA").absolutePath, dir.absolutePath)
+    }
+
+    @Test fun extensionPicksGbAndGbcFolders() {
+        val saves = temp.newFolder("Saves")
+        assertEquals(File(saves, "GB").absolutePath, SaveLocations.systemDirectory(saves, "Tetris.gb", null).absolutePath)
+        assertEquals(File(saves, "GBC").absolutePath, SaveLocations.systemDirectory(saves, "Oracle.gbc", null).absolutePath)
+    }
+
+    @Test fun romFolderWinsOverTheFileExtension() {
+        val saves = temp.newFolder("Saves")
+        val dir = SaveLocations.systemDirectory(saves, "hack.bin", "primary:ROMs/GBC/hack.bin")
+        assertEquals(File(saves, "GBC").absolutePath, dir.absolutePath)
+    }
+
+    @Test fun gameBoyColorFolderSavesUnderGbc() {
+        val saves = temp.newFolder("ROMs", "Saves")
+        val dir = SaveLocations.systemDirectory(
+            saves,
+            "Crystal.gb",
+            "/storage/1234-ABCD/ROMs/Game Boy Color/Crystal.gb",
+        )
+        assertEquals(File(saves, "GBC").absolutePath, dir.absolutePath)
+    }
+
+    @Test fun colorCartridgeWithAGbExtensionSavesUnderGbc() {
+        val saves = temp.newFolder("Saves")
+        val rom = temp.newFile("Crystal.gb")
+        val header = ByteArray(0x144)
+        header[0x143] = 0xC0.toByte()
+        rom.writeBytes(header)
+        val dir = SaveLocations.systemDirectory(saves, "Crystal.gb", rom.absolutePath, rom)
+        assertEquals(File(saves, "GBC").absolutePath, dir.absolutePath)
+    }
+
+    @Test fun aPlainGameBoyCartridgeStaysInGb() {
+        val saves = temp.newFolder("plain-saves")
+        val rom = temp.newFile("Tetris.gb")
+        rom.writeBytes(ByteArray(0x144))
+        val dir = SaveLocations.systemDirectory(saves, "Tetris.gb", rom.absolutePath, rom)
+        assertEquals(File(saves, "GB").absolutePath, dir.absolutePath)
+    }
+
+    @Test fun aSaveFolderAlreadyNamedForTheSystemIsNotNested() {
+        val gba = temp.newFolder("Saves", "GBA")
+        assertEquals(gba.absolutePath, SaveLocations.systemDirectory(gba, "Game.gba", null).absolutePath)
+    }
+
     @Test fun copiesMissingSaveFilesAndLeavesExistingOnes() {
         val from = temp.newFolder("from")
         val to = temp.newFolder("to")

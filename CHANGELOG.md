@@ -1,5 +1,17 @@
 # Changes
 
+## 1.0.14
+
+- Game Boy Color saves go in `Saves/GBC`, including `.gb` cartridges that are Color games
+
+## 1.0.13
+
+- GBA, GB, and GBC cartridge saves go in `Saves/GBA`, `Saves/GB`, and `Saves/GBC`
+
+## 1.0.12
+
+- JustBoy installs as the Standalone PokeDaisy target, so NeoStation can launch it for GBA, GB, and GBC from one app
+
 ## 1.0.11
 
 - Opening the app leaves the Saves folder alone

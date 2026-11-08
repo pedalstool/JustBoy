@@ -46,6 +46,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.justgba.data.RecentRomEntry
 import com.justgba.data.RecentRomsManager
+import com.justgba.settings.SaveLocations
 import com.justgba.settings.SettingsManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -83,6 +84,12 @@ fun MainMenu(
 
     var selectedEntry by remember { mutableStateOf<RecentRomEntry?>(null) }
 
+    suspend fun saveDirectoryFor(entry: RecentRomEntry): File {
+        val root = settingsManager.preparedSaveDirectory()
+        val rom = entry.cachePath.takeIf { it.isNotBlank() }?.let { File(it) }
+        return SaveLocations.systemDirectory(root, entry.displayName, entry.uri, rom)
+    }
+
     val exportLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.CreateDocument("application/octet-stream")
     ) { uri: Uri? ->
@@ -91,7 +98,7 @@ fun MainMenu(
         val target = uri ?: return@rememberLauncherForActivityResult
         scope.launch(Dispatchers.IO) {
             val saveFile = File(
-                settingsManager.preparedSaveDirectory(),
+                saveDirectoryFor(entry),
                 "${File(entry.displayName).nameWithoutExtension}.sav"
             )
             if (!saveFile.exists()) {
@@ -123,7 +130,7 @@ fun MainMenu(
         val source = uri ?: return@rememberLauncherForActivityResult
         scope.launch(Dispatchers.IO) {
             try {
-                val saveDir = settingsManager.preparedSaveDirectory()
+                val saveDir = saveDirectoryFor(entry)
                 val saveFile = File(
                     saveDir,
                     "${File(entry.displayName).nameWithoutExtension}.sav"

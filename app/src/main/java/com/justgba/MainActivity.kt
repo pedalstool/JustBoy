@@ -138,7 +138,7 @@ class MainActivity : ComponentActivity() {
                                 } else {
                                     resolveRomPath(Uri.parse(entry.uri))
                                 }
-                                if (path != null) launchRom(path, entry.displayName, null)
+                                if (path != null) launchRom(path, entry.displayName, Uri.parse(entry.uri))
                             },
                             modifier = Modifier.fillMaxSize()
                         )
@@ -187,7 +187,10 @@ class MainActivity : ComponentActivity() {
     private fun launchRom(path: String, displayName: String, uri: Uri?) {
         stopEmulation()
         val baseName = File(displayName).nameWithoutExtension
-        val saveDir = runBlocking(Dispatchers.IO) { settingsManager.preparedSaveDirectory() }
+        val saveDir = runBlocking(Dispatchers.IO) {
+            val root = settingsManager.preparedSaveDirectory()
+            SaveLocations.systemDirectory(root, displayName, uri?.toString() ?: path, File(path))
+        }
         if (!SaveLocations.isWritable(saveDir)) {
             Toast.makeText(this, "Cannot write saves in ${saveDir.absolutePath}", Toast.LENGTH_LONG).show()
             requestSaveStorageAccess()
