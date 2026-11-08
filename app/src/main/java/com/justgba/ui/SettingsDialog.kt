@@ -68,8 +68,6 @@ private val Sections = listOf(
     MenuPage.Cheats to "Cheats",
 )
 
-private val VideoShaders = listOf(0 to "Sharp", 1 to "Smooth", 4 to "2xBR")
-
 private val ScreenSizes = listOf(
     SettingsManager.SCREEN_SIZE_FIT to "Fit",
     SettingsManager.SCREEN_SIZE_INTEGER to "Integer",
@@ -199,13 +197,12 @@ fun SettingsDialog(
         MenuKeyCapture(keys)
         val heading = if (!picking) title else when (picker) {
             "size" -> "Screen size"
-            "shader" -> "Shader"
             "theme" -> "Dark theme"
             "ffspeed" -> "Fast forward"
             "ffaudio" -> "Fast forward audio"
             "fps" -> "Frame rate"
             "slot" -> "Slot"
-            "pass" -> "Shader pass ${shaderSlot + 1}"
+            "pass" -> "Shader file ${shaderSlot + 1}"
             "binding" -> pendingAction?.label ?: "Binding"
             else -> "Choose"
         }
@@ -244,7 +241,6 @@ fun SettingsDialog(
                     if (picking) {
                         when (picker) {
                             "size" -> OptionList(ScreenSizes, screenSize, keys, "size") { scope.launch { settingsManager.setScreenSize(it) }; closePick() }
-                            "shader" -> OptionList(VideoShaders, shader, keys, "shader") { onShaderChange(it); closePick() }
                             "theme" -> OptionList(ThemeOptions, themeMode, keys, "theme") { scope.launch { settingsManager.setThemeMode(it) }; closePick() }
                             "ffspeed" -> OptionList(SpeedOptions, ffSpeed, keys, "ffspeed") { onFfSpeedChange(it); closePick() }
                             "ffaudio" -> OptionList(AudioOptions, ffAudioMode, keys, "ffaudio") { onFfAudioModeChange(it); closePick() }
@@ -318,14 +314,6 @@ fun SettingsDialog(
                                     onClick = { picker = "fps"; picking = true },
                                 ),
                                 MenuRow("Screen size", labelOf(ScreenSizes, screenSize), "Fit fills the screen. Integer is the largest size that keeps each pixel square. 2x doubles the game's pixels.", onClick = { picker = "size"; picking = true }),
-                                MenuRow("Shader", labelOf(VideoShaders, shader), onClick = { picker = "shader"; picking = true }),
-                                MenuRow(
-                                    "Original GBA colors",
-                                    if (gbaColors) "On" else "Off",
-                                    "Matches the color of a GBA screen.",
-                                    onClick = { onGbaColorsChange(!gbaColors) },
-                                    onStep = { onGbaColorsChange(!gbaColors) },
-                                ),
                                 sliderRow("Brightness", shown.brightness, { held.picture.brightness }, Picture.BRIGHTNESS_RANGE, percentLabel(shown.brightness), 1f) { updatePicture(held.picture.copy(brightness = it)) },
                                 sliderRow("Contrast", shown.contrast, { held.picture.contrast }, Picture.CONTRAST_RANGE, percentLabel(shown.contrast), 1f) { updatePicture(held.picture.copy(contrast = it)) },
                                 sliderRow("Saturation", shown.saturation, { held.picture.saturation }, Picture.SATURATION_RANGE, percentLabel(shown.saturation), 1f) { updatePicture(held.picture.copy(saturation = it)) },
@@ -338,13 +326,13 @@ fun SettingsDialog(
                                     onStep = { onShowFpsChange(!showFps) },
                                 ),
                                 MenuRow(
-                                    "Shader pass 1",
+                                    "Shader file 1",
                                     shaderPassLabel(shaderFiles.getOrNull(0), shaderScales.getOrNull(0)),
                                     shaderNote,
                                     onClick = { shaderSlot = 0; picker = "pass"; picking = true },
                                 ),
                                 MenuRow(
-                                    "Shader pass 2",
+                                    "Shader file 2",
                                     shaderPassLabel(shaderFiles.getOrNull(1), shaderScales.getOrNull(1)),
                                     onClick = { shaderSlot = 1; picker = "pass"; picking = true },
                                 ),

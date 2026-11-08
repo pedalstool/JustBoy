@@ -1,5 +1,10 @@
 # Changes
 
+## 1.0.9
+
+- Put Settings above Restart in the quick menu, and remove Resume. B or the menu button returns to the game
+- Remove the built-in shaders and Original GBA colors. The picture stays nearest-neighbor
+
 ## 1.0.8
 
 - Screen size is Fit, Integer, and 2x through 5x. 6x was the same as Integer, and 7x could not fit

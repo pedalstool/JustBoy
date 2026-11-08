@@ -2,7 +2,7 @@
 <p align="center">
   <img alt="Platform" src="https://img.shields.io/badge/Android-ARM64-8ce1b1?style=flat-square">
   <img alt="License" src="https://img.shields.io/badge/License-GPL--2.0-blue?style=flat-square">
-  <img alt="Release" src="https://img.shields.io/badge/Release-1.0.8-blue?style=flat-square">
+  <img alt="Release" src="https://img.shields.io/badge/Release-1.0.9-blue?style=flat-square">
   <img alt="Systems" src="https://img.shields.io/badge/Systems-GBA%20%7C%20GB%20%7C%20GBC-8ce1b1?style=flat-square">
 </p>
 
@@ -17,10 +17,10 @@ It is not a fork of mGBA’s Qt or Android UI. The Android shell started from [c
 - GBA, GB, and GBC
 - Physical-controller first (no on-screen pad)
 - Remappable buttons and hotkeys: menu, fast-forward hold/toggle, save, load
-- In-game menu: save slot, save, load, resume, restart, quit game, quit emulator, and settings
+- In-game menu: save slot, save, load, settings, restart, quit game, and quit emulator
 - Three manual save slots plus autosave
 - Cheats (CodeBreaker and common GB/GBC formats)
-- Video shaders: Sharp, Smooth, 2xBR, optional original GBA colors, two imported GLSL passes
+- Two imported GLSL shader passes
 - Picture controls: brightness, contrast, saturation, temperature, and sharpness
 - Screen size: Fit, integer scale, or a locked 2x–5x
 - Frame rate: Native, 90, or 120. Higher rates draw in-between frames at normal game speed
@@ -62,8 +62,7 @@ The APK is generated at `app/build/outputs/apk/release/app-release.apk`. Local r
 | --- | --- | --- |
 | Android frontend (started as) | [carterprince / JustGBA](https://github.com/carterprince/JustGBA) | GPL-2.0; [original README](docs/UPSTREAM-README.md), [LICENSE](LICENSE) |
 | libmGBA | [endrift / mGBA](https://github.com/mgba-emu/mgba) | MPL-2.0; [vendored source](vendor/mgba), [LICENSE](vendor/mgba/LICENSE) |
-| xBR-lv2 / 2xBR | Hyllian (with acknowledged ideas from Joshua Street's SABR) | MIT-style permission notice retained in [shader source](app/src/main/assets/shaders/2xbr.glsl) |
-| GBA color shader | hunterk; modifications by Pokefan531 | Public domain, original header retained in [reference source](app/src/main/assets/shaders/gba-color-reference.glsl) |
+| GBA color shader | hunterk; modifications by Pokefan531 | Public domain. Upstream: [gba-color.glsl](https://github.com/libretro/glsl-shaders/blob/master/handheld/shaders/color/gba-color.glsl) |
 
 Upstream copyright and license notices are retained. Naming Nintendo, GBA, GB, or GBC describes compatibility and does not imply affiliation or endorsement.
 

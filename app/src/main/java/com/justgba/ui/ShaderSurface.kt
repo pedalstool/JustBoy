@@ -245,21 +245,22 @@ class ShaderSurface(context: Context) : GLSurfaceView(context), GLSurfaceView.Re
         )
     }
 
-    private fun activeShaderMode() = if (shaderMode == 2 || shaderMode == 3) 0 else shaderMode
-
-    private fun rebuild() {
-        val mode = activeShaderMode(); val files = shaderFiles; val scales = shaderScales
-        val srcW = coreWidth.coerceAtLeast(1); val srcH = coreHeight.coerceAtLeast(1)
-        val next = "$mode|$srcW|$srcH|${files.joinToString("|")}|${scales.joinToString()}"
-        if (signature == next) return
-        signature = next
+    private fun releasePasses() {
         passes.forEach {
             glDeleteProgram(it.program); glDeleteTextures(1, intArrayOf(it.texture), 0)
             glDeleteFramebuffers(1, intArrayOf(it.fbo), 0)
         }
         passes.clear()
+    }
+
+    private fun rebuild() {
+        val files = shaderFiles; val scales = shaderScales
+        val srcW = coreWidth.coerceAtLeast(1); val srcH = coreHeight.coerceAtLeast(1)
+        val next = "$srcW|$srcH|${files.joinToString("|")}|${scales.joinToString()}"
+        if (signature == next) return
+        signature = next
+        releasePasses()
         val stages = mutableListOf<Pair<String, Int>>()
-        if (mode == 4) stages.add(asset("2xbr.glsl") to 2)
         files.forEachIndexed { i, path -> if (path.isNotEmpty()) stages.add(path to (scales.getOrNull(i) ?: 1)) }
         var w = srcW; var h = srcH
         for ((textOrPath, scale) in stages) try {
@@ -329,7 +330,6 @@ class ShaderSurface(context: Context) : GLSurfaceView(context), GLSurfaceView.Re
         }
         glBindFramebuffer(GL_FRAMEBUFFER, 0); glViewport(0, 0, width, height)
         glClearColor(0f, 0f, 0f, 1f); glClear(GL_COLOR_BUFFER_BIT)
-        val mode = activeShaderMode()
         val viewport = outputViewport()
         val x = viewport[0]; val y = viewport[1]; val w = viewport[2]; val h = viewport[3]
         val pic = picture
@@ -340,17 +340,17 @@ class ShaderSurface(context: Context) : GLSurfaceView(context), GLSurfaceView.Re
         glViewport(x, y, w, h); glUseProgram(program)
         glActiveTexture(GL_TEXTURE1)
         glBindTexture(GL_TEXTURE_2D, if (previousTexture != 0) previousTexture else input)
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR)
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR)
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST)
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST)
         glActiveTexture(GL_TEXTURE0)
         glBindTexture(GL_TEXTURE_2D, input)
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR)
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR)
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST)
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST)
         if (locImage >= 0) glUniform1i(locImage, 0)
         if (locPrevious >= 0) glUniform1i(locPrevious, 1)
         if (locFrameMix >= 0) glUniform1f(locFrameMix, mix)
-        if (locGba >= 0) glUniform1i(locGba, if (gbaColors) 1 else 0)
-        if (locCrisp >= 0) glUniform1i(locCrisp, if (mode == 1) 0 else 1)
+        if (locGba >= 0) glUniform1i(locGba, 0)
+        if (locCrisp >= 0) glUniform1i(locCrisp, 0)
         if (locTexSize >= 0) glUniform2f(locTexSize, iw.toFloat(), ih.toFloat())
         if (locOutSize >= 0) glUniform2f(locOutSize, w.toFloat(), h.toFloat())
         if (locCoreSize >= 0) glUniform2f(locCoreSize, srcW.toFloat(), srcH.toFloat())

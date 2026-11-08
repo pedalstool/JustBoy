@@ -14,29 +14,14 @@ uniform float saturation;
 uniform float temperature;
 uniform float sharpness;
 
-vec3 sampleNow(vec2 uv) {
-    if (crisp != 1 || outSize.x < texSize.x || texSize.x < 1.0 || outSize.x < 1.0) return texture2D(image, uv).rgb;
-    vec2 coord = uv * texSize;
-    vec2 scale = outSize / texSize;
-    vec2 base = floor(coord);
-    vec2 frac = coord - base;
-    vec2 region = 0.5 - 0.5 / scale;
-    vec2 dist = frac - 0.5;
-    vec2 snapped = (dist - clamp(dist, -region, region)) * scale + 0.5;
-    return texture2D(image, (base + snapped) / texSize).rgb;
+vec3 nearestOf(sampler2D src, vec2 uv) {
+    if (texSize.x < 1.0 || texSize.y < 1.0) return texture2D(src, uv).rgb;
+    return texture2D(src, (floor(uv * texSize) + 0.5) / texSize).rgb;
 }
 
-vec3 sampleOld(vec2 uv) {
-    if (crisp != 1 || outSize.x < texSize.x || texSize.x < 1.0 || outSize.x < 1.0) return texture2D(previous, uv).rgb;
-    vec2 coord = uv * texSize;
-    vec2 scale = outSize / texSize;
-    vec2 base = floor(coord);
-    vec2 frac = coord - base;
-    vec2 region = 0.5 - 0.5 / scale;
-    vec2 dist = frac - 0.5;
-    vec2 snapped = (dist - clamp(dist, -region, region)) * scale + 0.5;
-    return texture2D(previous, (base + snapped) / texSize).rgb;
-}
+vec3 sampleNow(vec2 uv) { return nearestOf(image, uv); }
+
+vec3 sampleOld(vec2 uv) { return nearestOf(previous, uv); }
 
 void main() {
     vec3 now = sampleNow(v);

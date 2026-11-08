@@ -70,14 +70,9 @@ class SettingsManager(private val context: Context) {
     val shaderScales: Flow<List<Int>> = context.dataStore.data.map { p -> (0..1).map { (p[intPreferencesKey("shader_scale_$it")] ?: 1).coerceIn(1,2) } }
     suspend fun setShaderFile(slot: Int, path: String) { context.dataStore.edit { it[stringPreferencesKey("shader_file_$slot")] = path } }
     suspend fun setShaderScale(slot: Int, scale: Int) { context.dataStore.edit { it[intPreferencesKey("shader_scale_$slot")] = scale.coerceIn(1,2) } }
-    val gbaColors: Flow<Boolean> = context.dataStore.data.map { it[booleanPreferencesKey("gba_colors")] ?: false }
+    val gbaColors: Flow<Boolean> = context.dataStore.data.map { false }
     suspend fun setGbaColors(value: Boolean) { context.dataStore.edit { it[booleanPreferencesKey("gba_colors")] = value } }
-    val shader: Flow<Int> = context.dataStore.data.map {
-        when (val value = it[intPreferencesKey("shader")] ?: 0) {
-            2, 3 -> 0
-            else -> value
-        }
-    }
+    val shader: Flow<Int> = context.dataStore.data.map { 0 }
     suspend fun setShader(value: Int) { context.dataStore.edit { it[intPreferencesKey("shader")] = value } }
 
     val ffSpeed: Flow<Float> = context.dataStore.data.map { prefs ->
