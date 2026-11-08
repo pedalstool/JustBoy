@@ -1,5 +1,10 @@
 # Changes
 
+## 1.0.6
+
+- 90 and 120 draw the frames in between, while the game keeps its normal speed
+- Remove the pixel grid control
+
 ## 1.0.5
 
 - Add a Video frame rate choice: Native, 90, or 120

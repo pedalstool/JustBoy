@@ -2,7 +2,7 @@
 <p align="center">
   <img alt="Platform" src="https://img.shields.io/badge/Android-ARM64-8ce1b1?style=flat-square">
   <img alt="License" src="https://img.shields.io/badge/License-GPL--2.0-blue?style=flat-square">
-  <img alt="Release" src="https://img.shields.io/badge/Release-1.0.5-blue?style=flat-square">
+  <img alt="Release" src="https://img.shields.io/badge/Release-1.0.6-blue?style=flat-square">
   <img alt="Systems" src="https://img.shields.io/badge/Systems-GBA%20%7C%20GB%20%7C%20GBC-8ce1b1?style=flat-square">
 </p>
 
@@ -20,9 +20,9 @@ It is not a fork of mGBA’s Qt or Android UI. The Android shell started from [c
 - Three manual save slots plus autosave
 - Cheats (CodeBreaker and common GB/GBC formats)
 - Video shaders: Sharp, Smooth, 2xBR, optional original GBA colors, two imported GLSL passes
-- Picture controls: brightness, contrast, saturation, temperature, sharpness, and pixel grid
+- Picture controls: brightness, contrast, saturation, temperature, and sharpness
 - Screen size: Fit, integer scale, or a locked 2x–7x
-- Frame rate: Native, 90, or 120. Native is normal GBA speed
+- Frame rate: Native, 90, or 120. Higher rates draw in-between frames at normal game speed
 - Settings tabs along the top: General, Video, Controller, Hotkeys, Saves, Cheats
 - Saves default to the `Saves` folder on the SD card, and the folder can be changed
 - Dark theme: On, Off, or Follow system

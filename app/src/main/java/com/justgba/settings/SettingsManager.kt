@@ -35,7 +35,6 @@ class SettingsManager(private val context: Context) {
         val PICTURE_SATURATION = floatPreferencesKey("picture_saturation")
         val PICTURE_TEMPERATURE = floatPreferencesKey("picture_temperature")
         val PICTURE_SHARPNESS = floatPreferencesKey("picture_sharpness")
-        val PICTURE_GRID = floatPreferencesKey("picture_grid")
         val FRAME_RATE = intPreferencesKey("frame_rate")
         const val FRAME_RATE_NATIVE = 60
     }
@@ -146,7 +145,6 @@ class SettingsManager(private val context: Context) {
             saturation = prefs[PICTURE_SATURATION] ?: 1f,
             temperature = prefs[PICTURE_TEMPERATURE] ?: 0f,
             sharpness = prefs[PICTURE_SHARPNESS] ?: 0f,
-            pixelGrid = prefs[PICTURE_GRID] ?: 0f,
         ).sanitized()
     }
 
@@ -158,7 +156,6 @@ class SettingsManager(private val context: Context) {
             prefs[PICTURE_SATURATION] = next.saturation
             prefs[PICTURE_TEMPERATURE] = next.temperature
             prefs[PICTURE_SHARPNESS] = next.sharpness
-            prefs[PICTURE_GRID] = next.pixelGrid
         }
     }
 

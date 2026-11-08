@@ -145,7 +145,6 @@ fun GameScreen(
 
     LaunchedEffect(ffSpeed) { emulatorThread?.ffSpeedMultiplier = ffSpeed }
     LaunchedEffect(ffAudioMode) { emulatorThread?.ffAudioMode = ffAudioMode }
-    LaunchedEffect(frameRate) { emulatorThread?.targetFps = frameRate }
 
     val currentFps by (emulatorThread?.fps ?: MutableStateFlow(0)).collectAsState()
 
@@ -162,6 +161,7 @@ fun GameScreen(
             shaderFiles = shaderFiles,
             shaderScales = shaderScales,
             picture = picture,
+            frameRate = frameRate,
             modifier = Modifier.fillMaxSize()
         )
 
@@ -219,12 +219,7 @@ fun GameScreen(
             ffSpeed = ffSpeed,
             ffAudioMode = ffAudioMode,
             frameRate = frameRate,
-            onFrameRateChange = { rate ->
-                scope.launch {
-                    settingsManager.setFrameRate(rate)
-                    emulatorThread?.targetFps = rate
-                }
-            },
+            onFrameRateChange = { rate -> scope.launch { settingsManager.setFrameRate(rate) } },
             showFps = showFps,
             lockLandscape = lockLandscape,
             onFfSpeedChange = { speed ->
@@ -266,11 +261,13 @@ fun GameScreen(
 @Composable
 private fun EmulatorSurface(
     shader: Int, gbaColors: Boolean, screenSize: Int,
-    shaderFiles: List<String>, shaderScales: List<Int>, picture: Picture, modifier: Modifier = Modifier,
+    shaderFiles: List<String>, shaderScales: List<Int>, picture: Picture, frameRate: Int,
+    modifier: Modifier = Modifier,
 ) {
     AndroidView(factory = { ctx -> ShaderSurface(ctx) }, onRelease = { it.onPause() }, update = { view ->
         view.shaderMode = shader; view.gbaColors = gbaColors; view.screenSize = screenSize
         view.shaderFiles = shaderFiles; view.shaderScales = shaderScales; view.picture = picture
+        view.frameRate = frameRate
         view.coreWidth = NativeBridge.nativeGetVideoWidth().coerceAtLeast(1)
         view.coreHeight = NativeBridge.nativeGetVideoHeight().coerceAtLeast(1)
     }, modifier = modifier)

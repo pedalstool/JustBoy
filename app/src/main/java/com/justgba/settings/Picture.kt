@@ -8,7 +8,6 @@ data class Picture(
     val saturation: Float = 1f,
     val temperature: Float = 0f,
     val sharpness: Float = 0f,
-    val pixelGrid: Float = 0f,
 ) {
     fun sanitized(): Picture = Picture(
         brightness = brightness.coerceIn(BRIGHTNESS_RANGE),
@@ -16,7 +15,6 @@ data class Picture(
         saturation = saturation.coerceIn(SATURATION_RANGE),
         temperature = temperature.coerceIn(TEMPERATURE_RANGE),
         sharpness = sharpness.coerceIn(SHARPNESS_RANGE),
-        pixelGrid = pixelGrid.coerceIn(GRID_RANGE),
     )
 
     companion object {
@@ -25,7 +23,6 @@ data class Picture(
         val SATURATION_RANGE = 0f..2f
         val TEMPERATURE_RANGE = -1f..1f
         val SHARPNESS_RANGE = 0f..1f
-        val GRID_RANGE = 0f..1f
         const val STEP = 0.05f
 
         fun step(value: Float, direction: Int, range: ClosedFloatingPointRange<Float>): Float {

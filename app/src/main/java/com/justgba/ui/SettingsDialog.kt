@@ -361,7 +361,7 @@ fun SettingsDialog(
                                 MenuRow(
                                     "Frame rate",
                                     labelOf(FrameRates, frameRate),
-                                    "Native keeps normal GBA speed. 90 and 120 run the game faster.",
+                                    "Draws the frames in between. The game keeps its normal speed.",
                                     onClick = { picker = "fps"; picking = true },
                                 ),
                                 MenuRow("Screen size", labelOf(ScreenSizes, screenSize), "Fit keeps the game's shape. Integer keeps every pixel the same size.", onClick = { picker = "size"; picking = true }),
@@ -378,7 +378,6 @@ fun SettingsDialog(
                                 sliderRow("Saturation", shown.saturation, { held.picture.saturation }, Picture.SATURATION_RANGE, percentLabel(shown.saturation), 1f) { updatePicture(held.picture.copy(saturation = it)) },
                                 sliderRow("Temperature", shown.temperature, { held.picture.temperature }, Picture.TEMPERATURE_RANGE, temperatureLabel(shown.temperature), 0f) { updatePicture(held.picture.copy(temperature = it)) },
                                 sliderRow("Sharpness", shown.sharpness, { held.picture.sharpness }, Picture.SHARPNESS_RANGE, percentLabel(shown.sharpness), 0f) { updatePicture(held.picture.copy(sharpness = it)) },
-                                sliderRow("Pixel grid", shown.pixelGrid, { held.picture.pixelGrid }, Picture.GRID_RANGE, percentLabel(shown.pixelGrid), 0f) { updatePicture(held.picture.copy(pixelGrid = it)) }.copy(detail = "Darkens the gap between pixels."),
                                 MenuRow(
                                     "Show FPS",
                                     if (showFps) "On" else "Off",

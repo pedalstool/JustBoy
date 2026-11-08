@@ -1,6 +1,8 @@
 precision highp float;
 varying vec2 v;
 uniform sampler2D image;
+uniform sampler2D previous;
+uniform float frameMix;
 uniform int gba;
 uniform int crisp;
 uniform vec2 texSize;
@@ -11,22 +13,34 @@ uniform float contrast;
 uniform float saturation;
 uniform float temperature;
 uniform float sharpness;
-uniform float pixelGrid;
 
-vec3 sampleCrisp(vec2 uv) {
-    if (outSize.x < texSize.x || texSize.x < 1.0 || outSize.x < 1.0) return texture2D(image, uv).rgb;
-    vec2 texel = uv * texSize;
+vec3 sampleNow(vec2 uv) {
+    if (crisp != 1 || outSize.x < texSize.x || texSize.x < 1.0 || outSize.x < 1.0) return texture2D(image, uv).rgb;
+    vec2 coord = uv * texSize;
     vec2 scale = outSize / texSize;
-    vec2 base = floor(texel);
-    vec2 frac = texel - base;
+    vec2 base = floor(coord);
+    vec2 frac = coord - base;
     vec2 region = 0.5 - 0.5 / scale;
     vec2 dist = frac - 0.5;
     vec2 snapped = (dist - clamp(dist, -region, region)) * scale + 0.5;
     return texture2D(image, (base + snapped) / texSize).rgb;
 }
 
+vec3 sampleOld(vec2 uv) {
+    if (crisp != 1 || outSize.x < texSize.x || texSize.x < 1.0 || outSize.x < 1.0) return texture2D(previous, uv).rgb;
+    vec2 coord = uv * texSize;
+    vec2 scale = outSize / texSize;
+    vec2 base = floor(coord);
+    vec2 frac = coord - base;
+    vec2 region = 0.5 - 0.5 / scale;
+    vec2 dist = frac - 0.5;
+    vec2 snapped = (dist - clamp(dist, -region, region)) * scale + 0.5;
+    return texture2D(previous, (base + snapped) / texSize).rgb;
+}
+
 void main() {
-    vec3 c = crisp == 1 ? sampleCrisp(v) : texture2D(image, v).rgb;
+    vec3 now = sampleNow(v);
+    vec3 c = frameMix < 0.999 ? mix(sampleOld(v), now, frameMix) : now;
     if (sharpness > 0.001 && coreSize.x > 1.0) {
         vec2 t = 1.0 / coreSize;
         vec3 blur = (
@@ -48,11 +62,5 @@ void main() {
     float luma = dot(c, vec3(0.2126, 0.7152, 0.0722));
     c = mix(vec3(luma), c, saturation);
     c *= brightness;
-    if (pixelGrid > 0.001 && coreSize.x > 1.0) {
-        vec2 grid = fract(v * coreSize);
-        vec2 edge = min(grid, 1.0 - grid);
-        float gap = 1.0 - smoothstep(0.0, 0.16, min(edge.x, edge.y));
-        c *= 1.0 - gap * pixelGrid * 0.7;
-    }
     gl_FragColor = vec4(clamp(c, 0.0, 1.0), 1.0);
 }
