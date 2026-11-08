@@ -22,6 +22,7 @@ class EmulatorThread(
     @Volatile var paused = false
     @Volatile var ffSpeedMultiplier = 0f
     @Volatile var ffAudioMode = 1
+    @Volatile var targetFps = 60
 
     private val _fps = MutableStateFlow(0)
     val fps: StateFlow<Int> = _fps.asStateFlow()
@@ -61,6 +62,7 @@ class EmulatorThread(
         var lastFf = false
         var lastFfSpeed = Float.NaN
         var lastFfAudio = Int.MIN_VALUE
+        var lastTarget = Int.MIN_VALUE
 
         while (running) {
             synchronized(pauseLock) {
@@ -76,12 +78,19 @@ class EmulatorThread(
             val ff = fastForward
             val ffSpeed = ffSpeedMultiplier
             val ffAudio = ffAudioMode
-            if (ff != lastFf || ffSpeed != lastFfSpeed || ffAudio != lastFfAudio) {
+            val target = when (targetFps) {
+                90 -> 90
+                120 -> 120
+                else -> 60
+            }
+            if (ff != lastFf || ffSpeed != lastFfSpeed || ffAudio != lastFfAudio || target != lastTarget) {
                 audioEngine.setFfAudioMode(ffAudio)
-                audioEngine.setFastForward(ff, ffSpeed)
+                if (ff) audioEngine.setFastForward(true, ffSpeed)
+                else audioEngine.setPlaybackSpeed((target / TARGET_FPS).toFloat())
                 lastFf = ff
                 lastFfSpeed = ffSpeed
                 lastFfAudio = ffAudio
+                lastTarget = target
             }
 
             val mask = InputState.getPlayer1Mask()
@@ -91,13 +100,15 @@ class EmulatorThread(
             }
             audioEngine.tick()
 
+            val gameSpeed = target / TARGET_FPS
             if (!ff) {
                 lastSkipRender = setSkipRender(false, lastSkipRender)
                 NativeBridge.nativeRunFrame()
                 framesEmulated++
-                pace(FRAME_TIME_NS, lastFrameTime)
-                lastFrameTime += FRAME_TIME_NS
-                if (System.nanoTime() - lastFrameTime > FRAME_TIME_NS * 5) {
+                val frameTimeNs = (FRAME_TIME_NS / gameSpeed).toLong()
+                pace(frameTimeNs, lastFrameTime)
+                lastFrameTime += frameTimeNs
+                if (System.nanoTime() - lastFrameTime > frameTimeNs * 5) {
                     lastFrameTime = System.nanoTime()
                 }
             } else if (ffSpeed > 0) {

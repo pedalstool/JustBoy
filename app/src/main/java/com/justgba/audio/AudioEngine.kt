@@ -61,14 +61,20 @@ class AudioEngine {
         return true
     }
 
+    fun setPlaybackSpeed(speed: Float) {
+        fastForward = false
+        applyPlaybackRate(if (speed > 1f) speed else 1f)
+    }
+
     fun setFastForward(enabled: Boolean, speedMultiplier: Float) {
         fastForward = enabled
+        val speed = if (enabled && speedMultiplier > 1f && ffAudioMode == 1) speedMultiplier else 1f
+        applyPlaybackRate(speed)
+    }
+
+    private fun applyPlaybackRate(speed: Float) {
         val track = audioTrack ?: return
-        val rate = if (enabled && speedMultiplier > 1f && ffAudioMode == 1) {
-            (SAMPLE_RATE * minOf(speedMultiplier, 4f)).toInt()
-        } else {
-            SAMPLE_RATE
-        }
+        val rate = (SAMPLE_RATE * minOf(speed, 4f)).toInt().coerceAtLeast(SAMPLE_RATE)
         if (rate == appliedPlaybackRate) return
         try {
             track.playbackRate = rate

@@ -1,5 +1,10 @@
 # Changes
 
+## 1.0.5
+
+- Add a Video frame rate choice: Native, 90, or 120
+- Native stays the normal GBA speed. 90 and 120 run the game faster
+
 ## 1.0.4
 
 - Draw the game in full color and keep each pixel square

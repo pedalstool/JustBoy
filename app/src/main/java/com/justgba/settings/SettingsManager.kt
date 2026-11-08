@@ -36,6 +36,8 @@ class SettingsManager(private val context: Context) {
         val PICTURE_TEMPERATURE = floatPreferencesKey("picture_temperature")
         val PICTURE_SHARPNESS = floatPreferencesKey("picture_sharpness")
         val PICTURE_GRID = floatPreferencesKey("picture_grid")
+        val FRAME_RATE = intPreferencesKey("frame_rate")
+        const val FRAME_RATE_NATIVE = 60
     }
 
     val bindings: Flow<Map<String,String>> = context.dataStore.data.map { p ->
@@ -157,6 +159,25 @@ class SettingsManager(private val context: Context) {
             prefs[PICTURE_TEMPERATURE] = next.temperature
             prefs[PICTURE_SHARPNESS] = next.sharpness
             prefs[PICTURE_GRID] = next.pixelGrid
+        }
+    }
+
+    val frameRate: Flow<Int> = context.dataStore.data.map { prefs ->
+        when (prefs[FRAME_RATE] ?: FRAME_RATE_NATIVE) {
+            90 -> 90
+            120 -> 120
+            else -> FRAME_RATE_NATIVE
+        }
+    }
+
+    suspend fun setFrameRate(rate: Int) {
+        val value = when (rate) {
+            90 -> 90
+            120 -> 120
+            else -> FRAME_RATE_NATIVE
+        }
+        context.dataStore.edit { prefs ->
+            prefs[FRAME_RATE] = value
         }
     }
 

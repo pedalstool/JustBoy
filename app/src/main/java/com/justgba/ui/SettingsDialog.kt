@@ -94,6 +94,8 @@ private val SpeedOptions = listOf(1.5f to "1.5x", 2f to "2x", 2.5f to "2.5x", 3f
 
 private val AudioOptions = listOf(1 to "Increase pitch", 2 to "No correction", 0 to "Muted")
 
+private val FrameRates = listOf(SettingsManager.FRAME_RATE_NATIVE to "Native", 90 to "90", 120 to "120")
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsDialog(
@@ -109,6 +111,8 @@ fun SettingsDialog(
     status: String = "",
     ffSpeed: Float,
     ffAudioMode: Int,
+    frameRate: Int = SettingsManager.FRAME_RATE_NATIVE,
+    onFrameRateChange: (Int) -> Unit = {},
     showFps: Boolean,
     lockLandscape: Boolean,
     onFfSpeedChange: (Float) -> Unit,
@@ -246,6 +250,7 @@ fun SettingsDialog(
             "theme" -> "Dark theme"
             "ffspeed" -> "Fast forward"
             "ffaudio" -> "Fast forward audio"
+            "fps" -> "Frame rate"
             "slot" -> "Slot"
             "pass" -> "Shader pass ${shaderSlot + 1}"
             "binding" -> pendingAction?.label ?: "Binding"
@@ -290,6 +295,7 @@ fun SettingsDialog(
                             "theme" -> OptionList(ThemeOptions, themeMode, keys, "theme") { scope.launch { settingsManager.setThemeMode(it) }; closePick() }
                             "ffspeed" -> OptionList(SpeedOptions, ffSpeed, keys, "ffspeed") { onFfSpeedChange(it); closePick() }
                             "ffaudio" -> OptionList(AudioOptions, ffAudioMode, keys, "ffaudio") { onFfAudioModeChange(it); closePick() }
+                            "fps" -> OptionList(FrameRates, frameRate, keys, "fps") { onFrameRateChange(it); closePick() }
                             "slot" -> OptionList((1..3).map { it to "Slot $it" }, activeSlot, keys, "slot") {
                                 scope.launch { settingsManager.setActiveSlot(it) }
                                 closePick()
@@ -352,6 +358,12 @@ fun SettingsDialog(
                         )
                         MenuPage.Video -> MenuList(
                             rows = listOf(
+                                MenuRow(
+                                    "Frame rate",
+                                    labelOf(FrameRates, frameRate),
+                                    "Native keeps normal GBA speed. 90 and 120 run the game faster.",
+                                    onClick = { picker = "fps"; picking = true },
+                                ),
                                 MenuRow("Screen size", labelOf(ScreenSizes, screenSize), "Fit keeps the game's shape. Integer keeps every pixel the same size.", onClick = { picker = "size"; picking = true }),
                                 MenuRow("Shader", labelOf(VideoShaders, shader), onClick = { picker = "shader"; picking = true }),
                                 MenuRow(

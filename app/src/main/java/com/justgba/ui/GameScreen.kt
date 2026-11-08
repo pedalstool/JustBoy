@@ -139,11 +139,13 @@ fun GameScreen(
     val picture by settingsManager.picture.collectAsState(Picture())
     val ffSpeed by settingsManager.ffSpeed.collectAsState(2f)
     val ffAudioMode by settingsManager.ffAudioMode.collectAsState(1)
+    val frameRate by settingsManager.frameRate.collectAsState(SettingsManager.FRAME_RATE_NATIVE)
     val showFps by settingsManager.showFps.collectAsState(false)
     val lockLandscape by settingsManager.lockLandscape.collectAsState(false)
 
     LaunchedEffect(ffSpeed) { emulatorThread?.ffSpeedMultiplier = ffSpeed }
     LaunchedEffect(ffAudioMode) { emulatorThread?.ffAudioMode = ffAudioMode }
+    LaunchedEffect(frameRate) { emulatorThread?.targetFps = frameRate }
 
     val currentFps by (emulatorThread?.fps ?: MutableStateFlow(0)).collectAsState()
 
@@ -216,6 +218,13 @@ fun GameScreen(
             onShaderChange = { mode -> scope.launch { settingsManager.setShader(mode) } },
             ffSpeed = ffSpeed,
             ffAudioMode = ffAudioMode,
+            frameRate = frameRate,
+            onFrameRateChange = { rate ->
+                scope.launch {
+                    settingsManager.setFrameRate(rate)
+                    emulatorThread?.targetFps = rate
+                }
+            },
             showFps = showFps,
             lockLandscape = lockLandscape,
             onFfSpeedChange = { speed ->
