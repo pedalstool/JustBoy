@@ -1,6 +1,5 @@
 package com.justgba.ui
 
-import android.view.KeyEvent
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -32,13 +31,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
-import androidx.compose.ui.window.DialogWindowProvider
 import com.justgba.input.BindingAction
 import com.justgba.input.BindingActions
 import com.justgba.settings.Picture
@@ -123,6 +120,7 @@ fun SettingsDialog(
     onExit: (() -> Unit)? = null,
     onRestart: (() -> Unit)? = null,
     title: String = "Game Paused",
+    dismissLabel: String = "Close",
 ) {
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
@@ -200,50 +198,7 @@ fun SettingsDialog(
         onDismissRequest = onResume,
         properties = DialogProperties(usePlatformDefaultWidth = false, dismissOnBackPress = false),
     ) {
-        val view = LocalView.current
-        DisposableEffect(view) {
-            val window = ((view as? DialogWindowProvider)
-                ?: generateSequence(view.parent) { it.parent }.filterIsInstance<DialogWindowProvider>().firstOrNull())?.window
-            val previous = window?.callback
-            val bridge = if (previous != null) object : android.view.Window.Callback by previous {
-                override fun dispatchKeyEvent(event: KeyEvent): Boolean {
-                    val down = event.action == KeyEvent.ACTION_DOWN
-                    when (event.keyCode) {
-                        KeyEvent.KEYCODE_DPAD_UP -> if (keys.capture && down) { keys.up(); return true }
-                        KeyEvent.KEYCODE_DPAD_DOWN -> if (keys.capture && down) { keys.down(); return true }
-                        KeyEvent.KEYCODE_DPAD_LEFT -> if (keys.capture && down) { keys.left(); return true }
-                        KeyEvent.KEYCODE_DPAD_RIGHT -> if (keys.capture && down) { keys.right(); return true }
-                        KeyEvent.KEYCODE_BUTTON_A, KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> if (keys.capture) {
-                            if (down && event.repeatCount == 0) keys.confirm()
-                            return true
-                        }
-                        KeyEvent.KEYCODE_BUTTON_L1, KeyEvent.KEYCODE_PAGE_UP -> {
-                            if (down && event.repeatCount == 0) keys.tab(true)
-                            return true
-                        }
-                        KeyEvent.KEYCODE_BUTTON_R1, KeyEvent.KEYCODE_PAGE_DOWN -> {
-                            if (down && event.repeatCount == 0) keys.tab(false)
-                            return true
-                        }
-                        KeyEvent.KEYCODE_BUTTON_B, KeyEvent.KEYCODE_BACK, KeyEvent.KEYCODE_MENU, KeyEvent.KEYCODE_BUTTON_MODE -> {
-                            if (event.action == KeyEvent.ACTION_UP) keys.back()
-                            return true
-                        }
-                    }
-                    if (!keys.capture && event.keyCode == KeyEvent.KEYCODE_BUTTON_A) {
-                        return previous.dispatchKeyEvent(
-                            KeyEvent(
-                                event.downTime, event.eventTime, event.action, KeyEvent.KEYCODE_DPAD_CENTER,
-                                event.repeatCount, event.metaState, event.deviceId, event.scanCode, event.flags, event.source,
-                            )
-                        )
-                    }
-                    return previous.dispatchKeyEvent(event)
-                }
-            } else null
-            if (bridge != null) window?.callback = bridge
-            onDispose { if (window?.callback === bridge && previous != null) window.callback = previous }
-        }
+        MenuKeyCapture(keys)
         val heading = if (!picking) title else when (picker) {
             "size" -> "Screen size"
             "shader" -> "Shader"
@@ -268,7 +223,7 @@ fun SettingsDialog(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     TextButton(onClick = { back() }) {
-                        Text(if (picking) "Back" else if (onExit == null) "Close" else "Resume")
+                        Text(if (picking) "Back" else dismissLabel)
                     }
                     Text(
                         heading,

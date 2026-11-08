@@ -1,5 +1,10 @@
 # Changes
 
+## 1.0.7
+
+- The menu button opens a quick menu for the save slot, save, load, resume, restart, quit, and settings
+- Saving or loading a state closes the menu and returns to the game
+
 ## 1.0.6
 
 - 90 and 120 draw the frames in between, while the game keeps its normal speed

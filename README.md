@@ -2,7 +2,7 @@
 <p align="center">
   <img alt="Platform" src="https://img.shields.io/badge/Android-ARM64-8ce1b1?style=flat-square">
   <img alt="License" src="https://img.shields.io/badge/License-GPL--2.0-blue?style=flat-square">
-  <img alt="Release" src="https://img.shields.io/badge/Release-1.0.6-blue?style=flat-square">
+  <img alt="Release" src="https://img.shields.io/badge/Release-1.0.7-blue?style=flat-square">
   <img alt="Systems" src="https://img.shields.io/badge/Systems-GBA%20%7C%20GB%20%7C%20GBC-8ce1b1?style=flat-square">
 </p>
 
@@ -16,7 +16,8 @@ It is not a fork of mGBA’s Qt or Android UI. The Android shell started from [c
 
 - GBA, GB, and GBC
 - Physical-controller first (no on-screen pad)
-- Remappable buttons and hotkeys: pause, fast-forward hold/toggle, save, load
+- Remappable buttons and hotkeys: menu, fast-forward hold/toggle, save, load
+- In-game menu: save slot, save, load, resume, restart, quit game, quit emulator, and settings
 - Three manual save slots plus autosave
 - Cheats (CodeBreaker and common GB/GBC formats)
 - Video shaders: Sharp, Smooth, 2xBR, optional original GBA colors, two imported GLSL passes

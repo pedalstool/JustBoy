@@ -1,5 +1,6 @@
 package com.justgba.ui
 
+import android.app.Activity
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
@@ -63,12 +64,22 @@ fun GameScreen(
 ) {
     val view = LocalView.current
     var isFastForwarding by remember { mutableStateOf(false) }
-    var isMenuOpen by remember { mutableStateOf(false) }
+    var quickOpen by remember { mutableStateOf(false) }
+    var settingsOpen by remember { mutableStateOf(false) }
+    val menusOpen = quickOpen || settingsOpen
 
-    BackHandler(enabled = !isMenuOpen) {
-        isMenuOpen = true
+    fun openQuick() {
+        quickOpen = true
         emulatorThread?.pause()
     }
+
+    fun returnToGame() {
+        settingsOpen = false
+        quickOpen = false
+        emulatorThread?.resume()
+    }
+
+    BackHandler(enabled = !menusOpen) { openQuick() }
 
     val scope = rememberCoroutineScope()
     var slotRevision by remember { mutableStateOf(0) }
@@ -93,10 +104,12 @@ fun GameScreen(
     val saveSlot: (Int) -> Unit = { slot ->
         val ok = slots?.save(slot) == true
         notice(if (ok) "Saved slot $slot" else "Save failed"); slotRevision++
+        if (ok) returnToGame()
     }
     val loadSlot: (Int) -> Unit = { slot ->
         val ok = slots?.load(slot) == true
         InputState.clear(); notice(if (ok) "Loaded slot $slot" else "Slot $slot is empty or could not load")
+        if (ok) returnToGame()
     }
     val engine = remember(statePath) { BindingEngine() }
     SideEffect { engine.configure(bindings) }
@@ -107,12 +120,12 @@ fun GameScreen(
         for (action in frame.actions) when (action) {
             "save" -> saveSlot(activeSlot)
             "load" -> loadSlot(activeSlot)
-            "menu" -> { GameInput.menuOpen = true; isMenuOpen = true; emulatorThread?.pause() }
+            "menu" -> openQuick()
         }
     }
-    DisposableEffect(isMenuOpen, statePath) {
-        GameInput.menuOpen = isMenuOpen
-        if (!isMenuOpen) {
+    DisposableEffect(menusOpen, statePath) {
+        GameInput.menuOpen = menusOpen
+        if (!menusOpen) {
             GameInput.key = { code, down -> val frame = engine.key(code, down); dispatchFrame(frame); frame.consumed }
             GameInput.reset = { dispatchFrame(engine.reset()) }
         }
@@ -182,10 +195,7 @@ fun GameScreen(
                 .align(Alignment.TopCenter),
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            IconButton(onClick = {
-                isMenuOpen = true
-                emulatorThread?.pause()
-            }) {
+            IconButton(onClick = { openQuick() }) {
                 Icon(
                     imageVector = Icons.Filled.Settings,
                     contentDescription = "Menu",
@@ -204,7 +214,32 @@ fun GameScreen(
         }
     }
 
-    if (isMenuOpen) {
+    if (quickOpen) {
+        QuickMenu(
+            activeSlot = activeSlot,
+            slotLabels = slotLabels,
+            onSlotChange = { slot -> scope.launch { settingsManager.setActiveSlot(slot) } },
+            onSave = { saveSlot(activeSlot) },
+            onLoad = { loadSlot(activeSlot) },
+            onResume = { returnToGame() },
+            onRestart = {
+                NativeBridge.nativeReset()
+                returnToGame()
+            },
+            onQuitGame = {
+                returnToGame()
+                onExit()
+            },
+            onQuitEmulator = {
+                quickOpen = false
+                settingsOpen = false
+                (context as? Activity)?.finish()
+            },
+            onSettings = { settingsOpen = true },
+        )
+    }
+
+    if (settingsOpen) {
         SettingsDialog(
             settingsManager = settingsManager,
             statePath = statePath,
@@ -240,20 +275,17 @@ fun GameScreen(
             onLockLandscapeChange = { locked ->
                 scope.launch { settingsManager.setLockLandscape(locked) }
             },
-            onResume = {
-                isMenuOpen = false
-                emulatorThread?.resume()
-            },
+            onResume = { settingsOpen = false },
             onRestart = {
                 NativeBridge.nativeReset()
-                isMenuOpen = false
-                emulatorThread?.resume()
+                returnToGame()
             },
             onExit = {
-                isMenuOpen = false
-                emulatorThread?.resume()
+                returnToGame()
                 onExit()
             },
+            title = "Settings",
+            dismissLabel = "Back",
         )
     }
 }
