@@ -1,5 +1,10 @@
 # Changes
 
+## 1.0.11
+
+- Opening the app leaves the Saves folder alone
+- Existing saves are copied only when the save folder is changed
+
 ## 1.0.10
 
 - Opening a game no longer writes a save file on the way out

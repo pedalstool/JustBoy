@@ -219,9 +219,6 @@ class SettingsManager(private val context: Context) {
     suspend fun preparedSaveDirectory(): File = withContext(Dispatchers.IO) {
         val dir = SaveLocations.resolve(context, saveDirectory.first())
         SaveLocations.ensureDirectory(dir)
-        context.getExternalFilesDir(null)?.let { legacy ->
-            runCatching { SaveLocations.copyMissingSaves(legacy, dir) }
-        }
         dir
     }
 }
