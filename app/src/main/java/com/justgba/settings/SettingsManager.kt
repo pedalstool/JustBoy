@@ -34,9 +34,9 @@ class SettingsManager(private val context: Context) {
         val PICTURE_CONTRAST = floatPreferencesKey("picture_contrast")
         val PICTURE_SATURATION = floatPreferencesKey("picture_saturation")
         val PICTURE_TEMPERATURE = floatPreferencesKey("picture_temperature")
+        val PICTURE_TINT = floatPreferencesKey("picture_tint")
+        val PICTURE_GAMMA = floatPreferencesKey("picture_gamma")
         val PICTURE_SHARPNESS = floatPreferencesKey("picture_sharpness")
-        val FRAME_RATE = intPreferencesKey("frame_rate")
-        const val FRAME_RATE_NATIVE = 60
     }
 
     val bindings: Flow<Map<String,String>> = context.dataStore.data.map { p ->
@@ -64,6 +64,57 @@ class SettingsManager(private val context: Context) {
         }
     }
     suspend fun defaultBinding(action:String) { context.dataStore.edit { it[stringPreferencesKey("binding_$action")]=com.justgba.input.BindingActions.defaults.getValue(action) } }
+    suspend fun resetBindings(actions: List<com.justgba.input.BindingAction>) {
+        val ids = actions.map { it.id }.toSet()
+        val restoring = actions.associate { it.id to com.justgba.input.BindingActions.defaults.getValue(it.id) }
+        val claimed = restoring.values.flatMap { com.justgba.input.BindingActions.parse(it) }.toSet()
+        val current = bindings.first()
+        context.dataStore.edit { prefs ->
+            for ((other, encoded) in current) if (other !in ids) {
+                val parsed = com.justgba.input.BindingActions.parse(encoded)
+                val remaining = parsed.filter { it !in claimed }
+                if (remaining.size != parsed.size) {
+                    prefs[stringPreferencesKey("binding_$other")] =
+                        remaining.joinToString(";") { com.justgba.input.BindingActions.encode(it) }
+                }
+            }
+            for ((id, value) in restoring) prefs[stringPreferencesKey("binding_$id")] = value
+        }
+    }
+    suspend fun resetGeneral() {
+        context.dataStore.edit { prefs ->
+            prefs[THEME_MODE] = 0
+            prefs[FF_SPEED] = 2f
+            prefs[FF_AUDIO_MODE] = 1
+            prefs[LOCK_LANDSCAPE] = true
+        }
+    }
+    suspend fun resetVideo() {
+        val picture = Picture()
+        context.dataStore.edit { prefs ->
+            prefs.remove(intPreferencesKey("frame_rate"))
+            prefs[SCREEN_SIZE] = SCREEN_SIZE_FIT
+            prefs[SHOW_FPS] = false
+            prefs[PICTURE_BRIGHTNESS] = picture.brightness
+            prefs[PICTURE_CONTRAST] = picture.contrast
+            prefs[PICTURE_SATURATION] = picture.saturation
+            prefs[PICTURE_TEMPERATURE] = picture.temperature
+            prefs[PICTURE_TINT] = picture.tint
+            prefs[PICTURE_GAMMA] = picture.gamma
+            prefs[PICTURE_SHARPNESS] = picture.sharpness
+            for (slot in 0..1) {
+                prefs[stringPreferencesKey("shader_file_$slot")] = ""
+                prefs[intPreferencesKey("shader_scale_$slot")] = 1
+            }
+        }
+    }
+    suspend fun resetSaves() {
+        if (saveDirectory.first().isNotBlank()) setSaveDirectory("")
+        context.dataStore.edit { prefs ->
+            prefs[RESUME_AUTOSAVE] = false
+            prefs[intPreferencesKey("active_slot")] = 1
+        }
+    }
     val activeSlot: Flow<Int> = context.dataStore.data.map { (it[intPreferencesKey("active_slot")] ?: 1).coerceIn(1,3) }
     suspend fun setActiveSlot(slot: Int) { context.dataStore.edit { it[intPreferencesKey("active_slot")] = slot.coerceIn(1,3) } }
     val shaderFiles: Flow<List<String>> = context.dataStore.data.map { p -> (0..1).map { p[stringPreferencesKey("shader_file_$it")] ?: "" } }
@@ -137,9 +188,11 @@ class SettingsManager(private val context: Context) {
     val picture: Flow<Picture> = context.dataStore.data.map { prefs ->
         Picture(
             brightness = prefs[PICTURE_BRIGHTNESS] ?: 1f,
-            contrast = prefs[PICTURE_CONTRAST] ?: 1f,
-            saturation = prefs[PICTURE_SATURATION] ?: 1f,
-            temperature = prefs[PICTURE_TEMPERATURE] ?: 0f,
+            contrast = prefs[PICTURE_CONTRAST] ?: 1.05f,
+            saturation = prefs[PICTURE_SATURATION] ?: 1.10f,
+            temperature = prefs[PICTURE_TEMPERATURE] ?: -0.05f,
+            tint = prefs[PICTURE_TINT] ?: -0.05f,
+            gamma = prefs[PICTURE_GAMMA] ?: 1.10f,
             sharpness = prefs[PICTURE_SHARPNESS] ?: 0f,
         ).sanitized()
     }
@@ -151,26 +204,9 @@ class SettingsManager(private val context: Context) {
             prefs[PICTURE_CONTRAST] = next.contrast
             prefs[PICTURE_SATURATION] = next.saturation
             prefs[PICTURE_TEMPERATURE] = next.temperature
+            prefs[PICTURE_TINT] = next.tint
+            prefs[PICTURE_GAMMA] = next.gamma
             prefs[PICTURE_SHARPNESS] = next.sharpness
-        }
-    }
-
-    val frameRate: Flow<Int> = context.dataStore.data.map { prefs ->
-        when (prefs[FRAME_RATE] ?: FRAME_RATE_NATIVE) {
-            90 -> 90
-            120 -> 120
-            else -> FRAME_RATE_NATIVE
-        }
-    }
-
-    suspend fun setFrameRate(rate: Int) {
-        val value = when (rate) {
-            90 -> 90
-            120 -> 120
-            else -> FRAME_RATE_NATIVE
-        }
-        context.dataStore.edit { prefs ->
-            prefs[FRAME_RATE] = value
         }
     }
 

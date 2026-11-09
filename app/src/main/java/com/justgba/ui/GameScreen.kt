@@ -152,7 +152,6 @@ fun GameScreen(
     val picture by settingsManager.picture.collectAsState(Picture())
     val ffSpeed by settingsManager.ffSpeed.collectAsState(2f)
     val ffAudioMode by settingsManager.ffAudioMode.collectAsState(1)
-    val frameRate by settingsManager.frameRate.collectAsState(SettingsManager.FRAME_RATE_NATIVE)
     val showFps by settingsManager.showFps.collectAsState(false)
     val lockLandscape by settingsManager.lockLandscape.collectAsState(false)
 
@@ -174,7 +173,6 @@ fun GameScreen(
             shaderFiles = shaderFiles,
             shaderScales = shaderScales,
             picture = picture,
-            frameRate = frameRate,
             modifier = Modifier.fillMaxSize()
         )
 
@@ -253,8 +251,6 @@ fun GameScreen(
             onShaderChange = { mode -> scope.launch { settingsManager.setShader(mode) } },
             ffSpeed = ffSpeed,
             ffAudioMode = ffAudioMode,
-            frameRate = frameRate,
-            onFrameRateChange = { rate -> scope.launch { settingsManager.setFrameRate(rate) } },
             showFps = showFps,
             lockLandscape = lockLandscape,
             onFfSpeedChange = { speed ->
@@ -293,13 +289,12 @@ fun GameScreen(
 @Composable
 private fun EmulatorSurface(
     shader: Int, gbaColors: Boolean, screenSize: Int,
-    shaderFiles: List<String>, shaderScales: List<Int>, picture: Picture, frameRate: Int,
+    shaderFiles: List<String>, shaderScales: List<Int>, picture: Picture,
     modifier: Modifier = Modifier,
 ) {
     AndroidView(factory = { ctx -> ShaderSurface(ctx) }, onRelease = { it.onPause() }, update = { view ->
         view.shaderMode = shader; view.gbaColors = gbaColors; view.screenSize = screenSize
         view.shaderFiles = shaderFiles; view.shaderScales = shaderScales; view.picture = picture
-        view.frameRate = frameRate
         view.coreWidth = NativeBridge.nativeGetVideoWidth().coerceAtLeast(1)
         view.coreHeight = NativeBridge.nativeGetVideoHeight().coerceAtLeast(1)
     }, modifier = modifier)

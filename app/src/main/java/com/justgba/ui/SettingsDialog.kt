@@ -87,8 +87,6 @@ private val SpeedOptions = listOf(1.5f to "1.5x", 2f to "2x", 2.5f to "2.5x", 3f
 
 private val AudioOptions = listOf(1 to "Increase pitch", 2 to "No correction", 0 to "Muted")
 
-private val FrameRates = listOf(SettingsManager.FRAME_RATE_NATIVE to "Native", 90 to "90", 120 to "120")
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsDialog(
@@ -104,8 +102,6 @@ fun SettingsDialog(
     status: String = "",
     ffSpeed: Float,
     ffAudioMode: Int,
-    frameRate: Int = SettingsManager.FRAME_RATE_NATIVE,
-    onFrameRateChange: (Int) -> Unit = {},
     showFps: Boolean,
     lockLandscape: Boolean,
     onFfSpeedChange: (Float) -> Unit,
@@ -200,7 +196,6 @@ fun SettingsDialog(
             "theme" -> "Dark theme"
             "ffspeed" -> "Fast forward"
             "ffaudio" -> "Fast forward audio"
-            "fps" -> "Frame rate"
             "slot" -> "Slot"
             "pass" -> "Shader file ${shaderSlot + 1}"
             "binding" -> pendingAction?.label ?: "Binding"
@@ -244,7 +239,6 @@ fun SettingsDialog(
                             "theme" -> OptionList(ThemeOptions, themeMode, keys, "theme") { scope.launch { settingsManager.setThemeMode(it) }; closePick() }
                             "ffspeed" -> OptionList(SpeedOptions, ffSpeed, keys, "ffspeed") { onFfSpeedChange(it); closePick() }
                             "ffaudio" -> OptionList(AudioOptions, ffAudioMode, keys, "ffaudio") { onFfAudioModeChange(it); closePick() }
-                            "fps" -> OptionList(FrameRates, frameRate, keys, "fps") { onFrameRateChange(it); closePick() }
                             "slot" -> OptionList((1..3).map { it to "Slot $it" }, activeSlot, keys, "slot") {
                                 scope.launch { settingsManager.setActiveSlot(it) }
                                 closePick()
@@ -298,6 +292,10 @@ fun SettingsDialog(
                                     onClick = { onLockLandscapeChange(!lockLandscape) },
                                     onStep = { onLockLandscapeChange(!lockLandscape) },
                                 ))
+                                add(resetRow("Dark theme, fast forward, and landscape.") {
+                                    scope.launch { settingsManager.resetGeneral() }
+                                    Toast.makeText(context, "General reset", Toast.LENGTH_SHORT).show()
+                                })
                                 onRestart?.let { add(MenuRow("Restart game", onClick = it)) }
                                 onExit?.let { add(MenuRow("Quit game", destructive = true, onClick = it)) }
                             },
@@ -307,17 +305,13 @@ fun SettingsDialog(
                         )
                         MenuPage.Video -> MenuList(
                             rows = listOf(
-                                MenuRow(
-                                    "Frame rate",
-                                    labelOf(FrameRates, frameRate),
-                                    "Draws the frames in between. The game keeps its normal speed.",
-                                    onClick = { picker = "fps"; picking = true },
-                                ),
                                 MenuRow("Screen size", labelOf(ScreenSizes, screenSize), "Fit fills the screen. Integer is the largest size that keeps each pixel square. 2x doubles the game's pixels.", onClick = { picker = "size"; picking = true }),
                                 sliderRow("Brightness", shown.brightness, { held.picture.brightness }, Picture.BRIGHTNESS_RANGE, percentLabel(shown.brightness), 1f) { updatePicture(held.picture.copy(brightness = it)) },
-                                sliderRow("Contrast", shown.contrast, { held.picture.contrast }, Picture.CONTRAST_RANGE, percentLabel(shown.contrast), 1f) { updatePicture(held.picture.copy(contrast = it)) },
-                                sliderRow("Saturation", shown.saturation, { held.picture.saturation }, Picture.SATURATION_RANGE, percentLabel(shown.saturation), 1f) { updatePicture(held.picture.copy(saturation = it)) },
-                                sliderRow("Temperature", shown.temperature, { held.picture.temperature }, Picture.TEMPERATURE_RANGE, temperatureLabel(shown.temperature), 0f) { updatePicture(held.picture.copy(temperature = it)) },
+                                sliderRow("Contrast", shown.contrast, { held.picture.contrast }, Picture.CONTRAST_RANGE, percentLabel(shown.contrast), 1.05f) { updatePicture(held.picture.copy(contrast = it)) },
+                                sliderRow("Saturation", shown.saturation, { held.picture.saturation }, Picture.SATURATION_RANGE, percentLabel(shown.saturation), 1.10f) { updatePicture(held.picture.copy(saturation = it)) },
+                                sliderRow("Temperature", shown.temperature, { held.picture.temperature }, Picture.TEMPERATURE_RANGE, temperatureLabel(shown.temperature), -0.05f) { updatePicture(held.picture.copy(temperature = it)) },
+                                sliderRow("Tint", shown.tint, { held.picture.tint }, Picture.TINT_RANGE, tintLabel(shown.tint), -0.05f) { updatePicture(held.picture.copy(tint = it)) },
+                                sliderRow("Gamma", shown.gamma, { held.picture.gamma }, Picture.GAMMA_RANGE, percentLabel(shown.gamma), 1.10f) { updatePicture(held.picture.copy(gamma = it)) },
                                 sliderRow("Sharpness", shown.sharpness, { held.picture.sharpness }, Picture.SHARPNESS_RANGE, percentLabel(shown.sharpness), 0f) { updatePicture(held.picture.copy(sharpness = it)) },
                                 MenuRow(
                                     "Show FPS",
@@ -336,19 +330,32 @@ fun SettingsDialog(
                                     shaderPassLabel(shaderFiles.getOrNull(1), shaderScales.getOrNull(1)),
                                     onClick = { shaderSlot = 1; picker = "pass"; picking = true },
                                 ),
+                                resetRow("Picture, shaders, and the FPS counter.") {
+                                    draft = null
+                                    held.picture = Picture()
+                                    shaderNote = ""
+                                    scope.launch { settingsManager.resetVideo() }
+                                    Toast.makeText(context, "Video reset", Toast.LENGTH_SHORT).show()
+                                },
                             ),
                             keys = keys,
                             resetKey = MenuPage.Video,
                             modifier = Modifier.fillMaxSize(),
                         )
                         MenuPage.Controller -> MenuList(
-                            rows = bindingRows(BindingActions.controller),
+                            rows = bindingRows(BindingActions.controller) + resetRow("Restores the button mapping.") {
+                                scope.launch { settingsManager.resetBindings(BindingActions.controller) }
+                                Toast.makeText(context, "Controller reset", Toast.LENGTH_SHORT).show()
+                            },
                             keys = keys,
                             resetKey = MenuPage.Controller,
                             modifier = Modifier.fillMaxSize(),
                         )
                         MenuPage.Hotkeys -> MenuList(
-                            rows = bindingRows(BindingActions.hotkeys),
+                            rows = bindingRows(BindingActions.hotkeys) + resetRow("Restores the shortcut mapping.") {
+                                scope.launch { settingsManager.resetBindings(BindingActions.hotkeys) }
+                                Toast.makeText(context, "Hotkeys reset", Toast.LENGTH_SHORT).show()
+                            },
                             keys = keys,
                             resetKey = MenuPage.Hotkeys,
                             modifier = Modifier.fillMaxSize(),
@@ -468,6 +475,10 @@ private fun SavesPage(
                 add(MenuRow("Active slot", "Slot $activeSlot", "Hotkey save and load use this slot.", onClick = onPickSlot, onStep = { dir ->
                     scope.launch { settingsManager.setActiveSlot((activeSlot + dir).coerceIn(1, 3)) }
                 }))
+                add(resetRow("Save folder, resume, and the active slot.") {
+                    scope.launch { settingsManager.resetSaves() }
+                    Toast.makeText(context, "Saves reset", Toast.LENGTH_SHORT).show()
+                })
                 if (onSaveSlot != null && onLoadSlot != null) {
                     for (slot in 1..3) {
                         val label = slotLabels.getOrNull(slot - 1) ?: "Empty"
@@ -484,6 +495,9 @@ private fun SavesPage(
         )
     }
 }
+
+private fun resetRow(detail: String, onClick: () -> Unit) =
+    MenuRow("Reset defaults", detail = detail, onClick = onClick)
 
 private fun sliderRow(
     title: String,
@@ -520,6 +534,15 @@ private fun temperatureLabel(value: Float): String {
     return when {
         n > 0 -> "Warm $n"
         n < 0 -> "Cool ${-n}"
+        else -> "Neutral"
+    }
+}
+
+private fun tintLabel(value: Float): String {
+    val n = (value * 100f).roundToInt()
+    return when {
+        n > 0 -> "Green $n"
+        n < 0 -> "Magenta ${-n}"
         else -> "Neutral"
     }
 }

@@ -1,5 +1,31 @@
 # Changes
 
+## 1.0.21
+
+- The game always runs at its normal speed. The 90 and 120 frame rate choices are gone
+
+## 1.0.20
+
+- 90 keeps the screen on its faster refresh instead of falling back to 60
+
+## 1.0.19
+
+- Each settings page can restore its own defaults
+
+## 1.0.18
+
+- 90 and 120 switch the screen to that refresh rate and draw the frames in between
+
+## 1.0.17
+
+- Picture grade follows NX Redux's pixel-perfect controls: a slightly cool, deeper starting point, with gamma and tint in Video settings
+- Core pixels are expanded the same way NX Redux expands RGB565
+
+## 1.0.16
+
+- Resume game is in the quick menu, below Settings and above Restart game
+- Picture color is back to 1.0.14
+
 ## 1.0.14
 
 - Game Boy Color saves go in `Saves/GBC`, including `.gb` cartridges that are Color games

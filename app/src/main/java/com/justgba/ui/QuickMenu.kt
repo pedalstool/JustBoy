@@ -89,6 +89,7 @@ fun QuickMenu(
                                 MenuRow("Save state", onClick = onSave),
                                 MenuRow("Load state", slotLabel, onClick = onLoad),
                                 MenuRow("Settings", onClick = onSettings),
+                                MenuRow("Resume game", onClick = onResume),
                                 MenuRow("Restart game", onClick = onRestart),
                                 MenuRow("Quit game", destructive = true, onClick = onQuitGame),
                                 MenuRow("Quit emulator", destructive = true, onClick = onQuitEmulator),

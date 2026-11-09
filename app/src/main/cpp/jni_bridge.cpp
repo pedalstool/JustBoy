@@ -3,6 +3,7 @@
 
 #include <algorithm>
 #include <atomic>
+#include <cstdint>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -387,14 +388,29 @@ Java_com_justgba_emulator_NativeBridge_nativeDeinit(JNIEnv*, jclass) {
     joypad_bits.store(0, std::memory_order_relaxed);
 }
 
+static void expand565(const uint16_t* src, uint8_t* dst, size_t count) {
+    for (size_t i = 0; i < count; ++i) {
+        uint16_t p = src[i];
+        unsigned r5 = (p >> 11) & 0x1F;
+        unsigned g6 = (p >> 5) & 0x3F;
+        unsigned b5 = p & 0x1F;
+        dst[i * 4] = static_cast<uint8_t>((r5 << 3) | (r5 >> 2));
+        dst[i * 4 + 1] = static_cast<uint8_t>((g6 << 2) | (g6 >> 4));
+        dst[i * 4 + 2] = static_cast<uint8_t>((b5 << 3) | (b5 >> 2));
+        dst[i * 4 + 3] = 0xFF;
+    }
+}
+
 JNIEXPORT void JNICALL
 Java_com_justgba_emulator_NativeBridge_nativeCopyFrame(JNIEnv* env, jclass, jobject buffer) {
-    void* dst = env->GetDirectBufferAddress(buffer);
+    auto* dst = static_cast<uint8_t*>(env->GetDirectBufferAddress(buffer));
     jlong cap = env->GetDirectBufferCapacity(buffer);
-    if (!dst || cap <= 0) return;
+    if (!dst || cap < 4) return;
     std::lock_guard<std::mutex> lock(video_mutex);
-    size_t n = display_bytes < static_cast<size_t>(cap) ? display_bytes : static_cast<size_t>(cap);
-    if (display_pixels && n) memcpy(dst, display_pixels, n);
+    size_t count = display_bytes / 2;
+    size_t room = static_cast<size_t>(cap) / 4;
+    if (count > room) count = room;
+    if (display_pixels && count) expand565(display_pixels, dst, count);
 }
 
 JNIEXPORT void JNICALL

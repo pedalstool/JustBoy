@@ -4,9 +4,7 @@ import android.content.Context
 import android.opengl.GLES20.*
 import android.opengl.GLSurfaceView
 import android.util.Log
-import android.view.Choreographer
 import android.widget.Toast
-import kotlin.math.roundToInt
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.findViewTreeLifecycleOwner
@@ -38,12 +36,6 @@ class ShaderSurface(context: Context) : GLSurfaceView(context), GLSurfaceView.Re
     @Volatile var gbaColors = false
     @Volatile var screenSize = 0
     @Volatile var picture = com.justgba.settings.Picture()
-    @Volatile var frameRate = 60
-        set(value) {
-            if (field == value) return
-            field = value
-            post { updatePresentation() }
-        }
     @Volatile var shaderFiles: List<String> = listOf("", "")
     @Volatile var shaderScales: List<Int> = listOf(1, 1)
     @Volatile var coreWidth = 240
@@ -51,30 +43,6 @@ class ShaderSurface(context: Context) : GLSurfaceView(context), GLSurfaceView.Re
 
     private var program = 0
     private var texture = 0
-    private var previousTexture = 0
-    private var haveFrame = false
-    private var havePrevious = false
-    private var lastEmuNs = 0L
-    private var intervalNs = 16_742_706L
-    private var presentPosted = false
-    private var presentAcc = 0
-    private val frameCallback = object : Choreographer.FrameCallback {
-        override fun doFrame(frameTimeNanos: Long) {
-            if (!presentPosted) return
-            val target = frameRate
-            if (target <= 60) {
-                presentPosted = false
-                return
-            }
-            val hz = (display?.refreshRate ?: 60f).roundToInt().coerceAtLeast(30)
-            presentAcc += target
-            if (presentAcc >= hz) {
-                presentAcc -= hz
-                requestRender()
-            }
-            Choreographer.getInstance().postFrameCallback(this)
-        }
-    }
     private var texW = 240
     private var texH = 160
     private var width = 1
@@ -82,8 +50,6 @@ class ShaderSurface(context: Context) : GLSurfaceView(context), GLSurfaceView.Re
     private var frame = 0
     private var signature = ""
     private var locImage = -1
-    private var locPrevious = -1
-    private var locFrameMix = -1
     private var locGba = -1
     private var locCrisp = -1
     private var locTexSize = -1
@@ -93,6 +59,8 @@ class ShaderSurface(context: Context) : GLSurfaceView(context), GLSurfaceView.Re
     private var locContrast = -1
     private var locSaturation = -1
     private var locTemperature = -1
+    private var locTint = -1
+    private var locGamma = -1
     private var locSharpness = -1
     private var locPos = -1
     private var locUv = -1
@@ -104,8 +72,7 @@ class ShaderSurface(context: Context) : GLSurfaceView(context), GLSurfaceView.Re
         val samplers: IntArray, val textureSize: Int, val inputSize: Int,
         val outputSize: Int, val frameCount: Int, val frameDirection: Int, val mvp: Int,
     )
-    private val pixels = ByteBuffer.allocateDirect(256 * 224 * 2).order(ByteOrder.nativeOrder())
-    private val previousPixels = ByteBuffer.allocateDirect(256 * 224 * 2).order(ByteOrder.nativeOrder())
+    private val rgba = ByteBuffer.allocateDirect(256 * 224 * 4).order(ByteOrder.nativeOrder())
     private val vertices = ByteBuffer.allocateDirect(64).order(ByteOrder.nativeOrder()).asFloatBuffer().apply {
         put(floatArrayOf(-1f, -1f, 0f, 1f, 1f, -1f, 1f, 1f, -1f, 1f, 0f, 0f, 1f, 1f, 1f, 0f)); position(0)
     }
@@ -135,8 +102,6 @@ class ShaderSurface(context: Context) : GLSurfaceView(context), GLSurfaceView.Re
 
     private fun cacheDisplayLocations() {
         locImage = glGetUniformLocation(program, "image")
-        locPrevious = glGetUniformLocation(program, "previous")
-        locFrameMix = glGetUniformLocation(program, "frameMix")
         locGba = glGetUniformLocation(program, "gba")
         locCrisp = glGetUniformLocation(program, "crisp")
         locTexSize = glGetUniformLocation(program, "texSize")
@@ -146,6 +111,8 @@ class ShaderSurface(context: Context) : GLSurfaceView(context), GLSurfaceView.Re
         locContrast = glGetUniformLocation(program, "contrast")
         locSaturation = glGetUniformLocation(program, "saturation")
         locTemperature = glGetUniformLocation(program, "temperature")
+        locTint = glGetUniformLocation(program, "tint")
+        locGamma = glGetUniformLocation(program, "gamma")
         locSharpness = glGetUniformLocation(program, "sharpness")
         locPos = glGetAttribLocation(program, "pos")
         locUv = glGetAttribLocation(program, "uv")
@@ -171,34 +138,7 @@ class ShaderSurface(context: Context) : GLSurfaceView(context), GLSurfaceView.Re
         program = link(asset("display.vert"), asset("display.frag"))
         cacheDisplayLocations()
         texW = coreWidth.coerceAtLeast(1); texH = coreHeight.coerceAtLeast(1)
-        texture = texture(texW, texH, true)
-        previousTexture = texture(texW, texH, true)
-        haveFrame = false
-        havePrevious = false
-    }
-
-    private fun updatePresentation() {
-        if (frameRate <= 60) {
-            presentPosted = false
-            setRenderMode(RENDERMODE_CONTINUOUSLY)
-            return
-        }
-        setRenderMode(RENDERMODE_WHEN_DIRTY)
-        if (!presentPosted) {
-            presentPosted = true
-            presentAcc = 0
-            Choreographer.getInstance().postFrameCallback(frameCallback)
-        }
-    }
-
-    override fun onResume() {
-        super.onResume()
-        updatePresentation()
-    }
-
-    override fun onPause() {
-        presentPosted = false
-        super.onPause()
+        texture = texture(texW, texH)
     }
 
     override fun onSurfaceChanged(gl: GL10?, w: Int, h: Int) { width = w; height = h }
@@ -279,40 +219,19 @@ class ShaderSurface(context: Context) : GLSurfaceView(context), GLSurfaceView.Re
         val srcW = coreWidth.coerceAtLeast(1); val srcH = coreHeight.coerceAtLeast(1)
         if (srcW != texW || srcH != texH) {
             if (texture != 0) glDeleteTextures(1, intArrayOf(texture), 0)
-            if (previousTexture != 0) glDeleteTextures(1, intArrayOf(previousTexture), 0)
             texW = srcW; texH = srcH
-            texture = texture(texW, texH, true)
-            previousTexture = texture(texW, texH, true)
-            haveFrame = false
-            havePrevious = false
+            texture = texture(texW, texH)
             signature = ""
         }
         rebuild(); frame++
         if (NativeBridge.nativeFrameReady()) {
-            val bytes = srcW * srcH * 2
-            if (haveFrame && previousTexture != 0) {
-                pixels.limit(bytes).position(0)
-                previousPixels.limit(bytes).position(0)
-                previousPixels.put(pixels)
-                previousPixels.position(0)
-                glActiveTexture(GL_TEXTURE0)
-                glBindTexture(GL_TEXTURE_2D, previousTexture)
-                glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, srcW, srcH, GL_RGB, GL_UNSIGNED_SHORT_5_6_5, previousPixels)
-                havePrevious = true
-            }
-            val now = System.nanoTime()
-            if (lastEmuNs != 0L) {
-                val delta = now - lastEmuNs
-                if (delta in 2_000_000L..50_000_000L) intervalNs = delta
-            }
-            lastEmuNs = now
-            pixels.clear()
-            NativeBridge.nativeCopyFrame(pixels)
-            pixels.position(0)
+            val bytes = srcW * srcH * 4
+            rgba.clear()
+            NativeBridge.nativeCopyFrame(rgba)
+            rgba.limit(bytes).position(0)
             glActiveTexture(GL_TEXTURE0)
             glBindTexture(GL_TEXTURE_2D, texture)
-            glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, srcW, srcH, GL_RGB, GL_UNSIGNED_SHORT_5_6_5, pixels)
-            haveFrame = true
+            glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, srcW, srcH, GL_RGBA, GL_UNSIGNED_BYTE, rgba)
         }
         var input = texture; var iw = srcW; var ih = srcH
         for (pass in passes) {
@@ -333,22 +252,12 @@ class ShaderSurface(context: Context) : GLSurfaceView(context), GLSurfaceView.Re
         val viewport = outputViewport()
         val x = viewport[0]; val y = viewport[1]; val w = viewport[2]; val h = viewport[3]
         val pic = picture
-        val mix = if (frameRate <= 60 || !havePrevious || passes.isNotEmpty()) 1f else {
-            val age = (System.nanoTime() - lastEmuNs).coerceAtLeast(0L)
-            (age.toFloat() / intervalNs.toFloat()).coerceIn(0f, 1f)
-        }
         glViewport(x, y, w, h); glUseProgram(program)
-        glActiveTexture(GL_TEXTURE1)
-        glBindTexture(GL_TEXTURE_2D, if (previousTexture != 0) previousTexture else input)
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST)
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST)
         glActiveTexture(GL_TEXTURE0)
         glBindTexture(GL_TEXTURE_2D, input)
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST)
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST)
         if (locImage >= 0) glUniform1i(locImage, 0)
-        if (locPrevious >= 0) glUniform1i(locPrevious, 1)
-        if (locFrameMix >= 0) glUniform1f(locFrameMix, mix)
         if (locGba >= 0) glUniform1i(locGba, 0)
         if (locCrisp >= 0) glUniform1i(locCrisp, 0)
         if (locTexSize >= 0) glUniform2f(locTexSize, iw.toFloat(), ih.toFloat())
@@ -358,6 +267,8 @@ class ShaderSurface(context: Context) : GLSurfaceView(context), GLSurfaceView.Re
         if (locContrast >= 0) glUniform1f(locContrast, pic.contrast)
         if (locSaturation >= 0) glUniform1f(locSaturation, pic.saturation)
         if (locTemperature >= 0) glUniform1f(locTemperature, pic.temperature)
+        if (locTint >= 0) glUniform1f(locTint, pic.tint)
+        if (locGamma >= 0) glUniform1f(locGamma, pic.gamma)
         if (locSharpness >= 0) glUniform1f(locSharpness, pic.sharpness)
         draw(locPos, locUv)
     }

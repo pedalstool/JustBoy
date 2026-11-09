@@ -72,7 +72,6 @@ fun MainMenu(
     val gbaColors by settingsManager.gbaColors.collectAsState(false)
     val ffSpeed by settingsManager.ffSpeed.collectAsState(2f)
     val ffAudioMode by settingsManager.ffAudioMode.collectAsState(1)
-    val frameRate by settingsManager.frameRate.collectAsState(SettingsManager.FRAME_RATE_NATIVE)
     val showFps by settingsManager.showFps.collectAsState(false)
     val lockLandscape by settingsManager.lockLandscape.collectAsState(false)
 
@@ -269,8 +268,6 @@ fun MainMenu(
             onGbaColorsChange = { scope.launch { settingsManager.setGbaColors(it) } },
             ffSpeed = ffSpeed,
             ffAudioMode = ffAudioMode,
-            frameRate = frameRate,
-            onFrameRateChange = { rate -> scope.launch { settingsManager.setFrameRate(rate) } },
             showFps = showFps,
             lockLandscape = lockLandscape,
             onFfSpeedChange = { speed ->

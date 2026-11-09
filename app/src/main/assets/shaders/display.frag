@@ -1,8 +1,6 @@
 precision highp float;
 varying vec2 v;
 uniform sampler2D image;
-uniform sampler2D previous;
-uniform float frameMix;
 uniform int gba;
 uniform int crisp;
 uniform vec2 texSize;
@@ -12,6 +10,8 @@ uniform float brightness;
 uniform float contrast;
 uniform float saturation;
 uniform float temperature;
+uniform float tint;
+uniform float gamma;
 uniform float sharpness;
 
 vec3 nearestOf(sampler2D src, vec2 uv) {
@@ -21,11 +21,8 @@ vec3 nearestOf(sampler2D src, vec2 uv) {
 
 vec3 sampleNow(vec2 uv) { return nearestOf(image, uv); }
 
-vec3 sampleOld(vec2 uv) { return nearestOf(previous, uv); }
-
 void main() {
-    vec3 now = sampleNow(v);
-    vec3 c = frameMix < 0.999 ? mix(sampleOld(v), now, frameMix) : now;
+    vec3 c = sampleNow(v);
     if (sharpness > 0.001 && coreSize.x > 1.0) {
         vec2 t = 1.0 / coreSize;
         vec3 blur = (
@@ -36,16 +33,14 @@ void main() {
         ) * 0.25;
         c = clamp(c + (c - blur) * sharpness * 2.0, 0.0, 1.0);
     }
-    if (gba == 1) {
-        vec3 s = pow(max(c, vec3(0.0)), vec3(2.2));
-        s = mat3(0.84, 0.09, 0.15, 0.18, 0.67, 0.10, 0.00, 0.26, 0.73) * s;
-        c = pow(clamp(s, 0.0, 1.0), vec3(1.0 / 2.2));
-    }
-    c.r += temperature * 0.10;
-    c.b -= temperature * 0.10;
-    c = (c - 0.5) * contrast + 0.5;
+    // Same grade as NX Redux pixel-perfect.glsl. Temperature trades red for
+    // blue, tint trades green for magenta, then brightness, contrast, and
+    // saturation fold into one step. Gamma above 1 deepens the midtones.
+    c *= 1.0 + temperature * vec3(1.0, 0.0, -1.0) + tint * vec3(-0.5, 1.0, -0.5);
+    float gain = brightness * contrast;
+    float lift = 0.5 - 0.5 * contrast;
     float luma = dot(c, vec3(0.2126, 0.7152, 0.0722));
-    c = mix(vec3(luma), c, saturation);
-    c *= brightness;
+    c = c * (gain * saturation) + luma * (gain * (1.0 - saturation)) + lift;
+    if (abs(gamma - 1.0) > 0.001) c = pow(max(c, 1e-8), vec3(gamma));
     gl_FragColor = vec4(clamp(c, 0.0, 1.0), 1.0);
 }

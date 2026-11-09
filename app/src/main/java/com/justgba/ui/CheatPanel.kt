@@ -135,6 +135,10 @@ fun CheatMenu(statePath: String?, keys: MenuKeys) {
                         editing = true
                     }))
                     add(MenuRow("Import cheat file", onClick = { picker.launch(arrayOf("*/*")) }))
+                    add(MenuRow("Reset defaults", detail = "Removes the cheats for this game.", destructive = true, onClick = {
+                        commit(emptyList())
+                        if (entries.isEmpty()) message = "Cheats reset"
+                    }))
                 },
                 keys = keys,
                 resetKey = "cheats",

@@ -13,8 +13,8 @@ android {
         applicationId = "com.pokedaisy.app"
         minSdk = 26
         targetSdk = 34
-        versionCode = 15
-        versionName = "1.0.14"
+        versionCode = 22
+        versionName = "1.0.21"
 
         ndk {
             abiFilters += "arm64-v8a"
